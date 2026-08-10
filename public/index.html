@@ -125,7 +125,8 @@
     }
 
     body.home-active header,
-    body.home-active main {
+    body.home-active main,
+    body.home-active footer {
       visibility: hidden;
     }
 
@@ -569,6 +570,87 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+
+    /* --- FOOTER --- */
+    footer {
+      width: 100%;
+      border-top: 1px solid #252525;
+      background: #0a0a0a;
+      padding: 28px 24px 22px;
+      color: #777;
+      margin-top: auto;
+    }
+
+    .footer-inner {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px 22px;
+      margin-bottom: 18px;
+    }
+
+    .footer-links a,
+    .footer-links button {
+      background: none;
+      border: none;
+      color: #888;
+      font: inherit;
+      font-size: .82rem;
+      text-decoration: none;
+      cursor: pointer;
+      padding: 0;
+      transition: color .2s;
+    }
+
+    .footer-links a:hover,
+    .footer-links button:hover {
+      color: #fff;
+    }
+
+    .footer-divider {
+      height: 1px;
+      background: #202020;
+      margin: 0 auto 16px;
+      max-width: 760px;
+    }
+
+    .footer-bottom {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      max-width: 760px;
+      margin: 0 auto;
+      font-size: .78rem;
+      color: #666;
+    }
+
+    .site-by {
+      color: #888;
+    }
+
+    .site-by strong {
+      color: #aaa;
+      font-weight: 600;
+    }
+
+    @media (max-width: 600px) {
+      .footer-links {
+        gap: 10px 16px;
+      }
+
+      .footer-bottom {
+        justify-content: center;
+        text-align: center;
+      }
+    }
+
   </style>
 </head>
 <body class="home-active">
@@ -786,6 +868,29 @@
       <button type="button" class="btn btn-primary" onclick="resetApp()">Try Again</button>
     </div>
   </main>
+
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-inner">
+      <nav class="footer-links" aria-label="Footer navigation">
+        <a href="#" onclick="return footerMessage('Privacy')">Privacy</a>
+        <a href="#" onclick="return footerMessage('Security')">Security</a>
+        <a href="#" onclick="return footerMessage('Status')">Status</a>
+        <a href="#" onclick="return footerMessage('Community')">Community</a>
+        <a href="#" onclick="return footerMessage('Docs')">Docs</a>
+        <a href="#" onclick="return footerMessage('Contact')">Contact</a>
+        <button type="button" onclick="return footerMessage('Manage Cookies')">Manage Cookies</button>
+      </nav>
+
+      <div class="footer-divider"></div>
+
+      <div class="footer-bottom">
+        <span>© <span id="footerYear">2026</span> YourChoice</span>
+        <span class="site-by">Site by - <strong>Yojit</strong></span>
+      </div>
+    </div>
+  </footer>
 
   <!-- MODAL -->
   <div class="modal-overlay" id="modalOverlay">
@@ -1191,6 +1296,12 @@
       }
     }
 
+
+    function footerMessage(section) {
+      alert(`${section} section is coming soon.`);
+      return false;
+    }
+
     function closeModal() {
       document.getElementById('modalOverlay').classList.remove('active');
     }
@@ -1216,9 +1327,18 @@
       state.country = 'any';
       state.rating = 0;
       state.minYear = 2000;
-      state.maxYear = new Date().getFullYear();
+      state.maxYear = 2026;
       state.hashtags = [];
       state.watchedIds = [];
+
+      const min = document.getElementById('minYear');
+      const max = document.getElementById('maxYear');
+      if (min) min.value = 2000;
+      if (max) max.value = 2026;
+      if (min && max) {
+        document.getElementById('minYearLabel').textContent = 'From 2000';
+        document.getElementById('maxYearLabel').textContent = 'To 2026';
+      }
 
       document.querySelectorAll('.pill-btn').forEach(btn => btn.classList.remove('selected'));
       renderFavoriteChips();
