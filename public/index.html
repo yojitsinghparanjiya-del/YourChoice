@@ -31,6 +31,110 @@
     input[type="range"]::-webkit-slider-thumb { pointer-events: auto; }
     input[type="range"]::-moz-range-thumb { pointer-events: auto; }
 
+
+    /* --- HOMEPAGE --- */
+    .homepage {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      overflow: hidden;
+      background: #050505;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .poster-wall {
+      position: absolute;
+      inset: -8%;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 14px;
+      transform: rotate(-5deg) scale(1.08);
+      opacity: .58;
+      filter: saturate(.8);
+    }
+
+    .poster-wall img {
+      width: 100%;
+      height: 42vh;
+      object-fit: cover;
+      border-radius: 10px;
+      box-shadow: 0 20px 50px rgba(0,0,0,.5);
+    }
+
+    .home-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(0,0,0,.92) 0%, rgba(0,0,0,.70) 45%, rgba(0,0,0,.84) 100%), linear-gradient(0deg, rgba(0,0,0,.75), transparent 55%);
+    }
+
+    .home-content {
+      position: relative;
+      z-index: 2;
+      width: min(900px, 90vw);
+      text-align: center;
+    }
+
+    .home-brand {
+      font-size: clamp(3rem, 8vw, 6rem);
+      line-height: .95;
+      font-weight: 850;
+      letter-spacing: -4px;
+      margin-bottom: 20px;
+    }
+
+    .home-brand span { color: #aaa; font-weight: 300; }
+
+    .home-greeting {
+      font-size: clamp(1.25rem, 3vw, 2rem);
+      font-weight: 500;
+      color: #eee;
+      margin-bottom: 12px;
+    }
+
+    .home-tagline {
+      color: #aaa;
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      max-width: 650px;
+      margin: 0 auto 34px;
+    }
+
+    .start-btn {
+      border: 0;
+      background: #fff;
+      color: #080808;
+      padding: 15px 32px;
+      border-radius: 999px;
+      font-size: 1rem;
+      font-weight: 750;
+      cursor: pointer;
+      transition: transform .2s ease, box-shadow .2s ease;
+      box-shadow: 0 12px 35px rgba(0,0,0,.35);
+    }
+
+    .start-btn:hover {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 18px 45px rgba(0,0,0,.5);
+    }
+
+    .home-note {
+      margin-top: 18px;
+      color: #777;
+      font-size: .85rem;
+    }
+
+    body.home-active header,
+    body.home-active main {
+      visibility: hidden;
+    }
+
+    @media (max-width: 700px) {
+      .poster-wall { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .poster-wall img { height: 38vh; }
+      .home-brand { letter-spacing: -2px; }
+    }
+
     /* --- HEADER --- */
     header {
       padding: 24px 32px;
@@ -467,12 +571,38 @@
     }
   </style>
 </head>
-<body>
+<body class="home-active">
+
+  <!-- HOMEPAGE -->
+  <section class="homepage" id="homepage">
+    <div class="poster-wall" aria-hidden="true">
+      <img src="https://image.tmdb.org/t/p/w500/7fn624j5lj3xTme2SgiLCeNOV2u.jpg" alt="" />
+      <img src="https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg" alt="" />
+      <img src="https://image.tmdb.org/t/p/w500/q719jXXEzOoYaps6babgKnONONX.jpg" alt="" />
+      <img src="https://image.tmdb.org/t/p/w500/1XDDXPXGiI8id7MrUxK36ke7gkX.jpg" alt="" />
+      <img src="https://image.tmdb.org/t/p/w500/5weKu49pzJCt06OPpjvT80efnQj.jpg" alt="" />
+      <img src="https://image.tmdb.org/t/p/w500/3bhkrj58Vtu7enYsRolD1fZdja1.jpg" alt="" />
+      <img src="https://image.tmdb.org/t/p/w500/74xTEgt7R36Fpooo50r9T25onhq.jpg" alt="" />
+      <img src="https://image.tmdb.org/t/p/w500/2mxS4wUimwlLmI1xp6QW6QzZzqf.jpg" alt="" />
+      <img src="https://image.tmdb.org/t/p/w500/8YFL5QQVPy3AgrEQxNYVSgiPEbe.jpg" alt="" />
+      <img src="https://image.tmdb.org/t/p/w500/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg" alt="" />
+      <img src="https://image.tmdb.org/t/p/w500/5KCVkau1HEl7ZzfPsKAPM0sMiKc.jpg" alt="" />
+      <img src="https://image.tmdb.org/t/p/w500/6WxhEvFsauuACfv8HyoVX6mZKFj.jpg" alt="" />
+    </div>
+    <div class="home-overlay"></div>
+    <div class="home-content">
+      <div class="home-brand">Your<span>Choice</span></div>
+      <h1 class="home-greeting">Welcome. What do you feel like watching?</h1>
+      <p class="home-tagline">Tell us your mood, favorite movies, themes, genres and preferences — and let YourChoice find something made for you.</p>
+      <button type="button" class="start-btn" onclick="startFinding()">Start Finding Movies</button>
+      <p class="home-note">Personalized recommendations • Your preferences • Your choice</p>
+    </div>
+  </section>
 
   <!-- HEADER -->
   <header>
-    <div class="logo" onclick="resetApp()">Your<span>Choice</span></div>
-    <button type="button" class="nav-search-btn" onclick="resetApp()">↻ Restart</button>
+    <div class="logo" onclick="showHome()">Your<span>Choice</span></div>
+    <button type="button" class="nav-search-btn" onclick="showHome()">⌂ Home</button>
   </header>
 
   <!-- MAIN CONTAINER -->
@@ -1063,6 +1193,17 @@
 
     function closeModal() {
       document.getElementById('modalOverlay').classList.remove('active');
+    }
+
+    function startFinding() {
+      document.body.classList.remove('home-active');
+      document.getElementById('homepage').style.display = 'none';
+      resetApp();
+    }
+
+    function showHome() {
+      document.body.classList.add('home-active');
+      document.getElementById('homepage').style.display = 'flex';
     }
 
     function resetApp() {
