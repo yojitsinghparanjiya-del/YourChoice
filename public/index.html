@@ -23,6 +23,14 @@
       -webkit-font-smoothing: antialiased;
     }
 
+
+    input[type="range"] {
+      pointer-events: none;
+      accent-color: #ffffff;
+    }
+    input[type="range"]::-webkit-slider-thumb { pointer-events: auto; }
+    input[type="range"]::-moz-range-thumb { pointer-events: auto; }
+
     /* --- HEADER --- */
     header {
       padding: 24px 32px;
@@ -437,86 +445,6 @@
       display: inline-block;
     }
 
-    /* --- YEAR RANGE SLIDER --- */
-    .range-wrapper { width:100%; max-width:600px; margin:8px auto 30px; text-align:left; }
-    .range-values { display:flex; justify-content:space-between; margin-bottom:14px; font-weight:700; }
-    .range-track { position:relative; height:6px; background:#303030; border-radius:10px; }
-    .range-fill { position:absolute; top:0; height:6px; background:#fff; border-radius:10px; }
-    .range-input { position:absolute; width:100%; height:6px; top:0; left:0; pointer-events:none; appearance:none; background:transparent; }
-    .range-input::-webkit-slider-thumb { appearance:none; width:20px; height:20px; border-radius:50%; background:#fff; border:2px solid #0d0d0d; cursor:pointer; pointer-events:auto; }
-    .range-input::-moz-range-thumb { width:18px; height:18px; border-radius:50%; background:#fff; border:2px solid #0d0d0d; cursor:pointer; pointer-events:auto; }
-    .multi-select-grid { display:flex; flex-wrap:wrap; gap:10px; justify-content:flex-start; }
-    .multi-option { display:flex; align-items:center; gap:8px; background:#171717; border:1px solid #303030; border-radius:22px; padding:9px 14px; cursor:pointer; color:#fff; }
-    .multi-option input { accent-color:#fff; }
-
-
-    /* --- SITE FOOTER --- */
-    .site-footer {
-      width: 100%;
-      margin-top: 70px;
-      padding: 28px 5% 22px;
-      border-top: 1px solid #242424;
-      box-sizing: border-box;
-      color: #8d8d8d;
-      font-size: 0.85rem;
-    }
-
-    .footer-content {
-      max-width: 1200px;
-      margin: 0 auto;
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: 24px;
-      flex-wrap: wrap;
-    }
-
-    .footer-links {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px 20px;
-      align-items: center;
-    }
-
-    .footer-links a {
-      color: #999;
-      text-decoration: none;
-      transition: color 0.2s ease;
-    }
-
-    .footer-links a:hover {
-      color: #fff;
-    }
-
-    .footer-divider {
-      color: #444;
-      user-select: none;
-    }
-
-    .footer-credit {
-      margin-left: auto;
-      text-align: right;
-      white-space: nowrap;
-      color: #777;
-    }
-
-    .footer-credit strong {
-      color: #aaa;
-      font-weight: 600;
-    }
-
-    @media (max-width: 650px) {
-      .footer-content {
-        align-items: flex-start;
-      }
-
-      .footer-credit {
-        margin-left: 0;
-        width: 100%;
-        text-align: left;
-      }
-    }
-
     /* --- STATES --- */
     .loading-state, .empty-state {
       display: none;
@@ -623,45 +551,42 @@
       <!-- STEP 4: LANGUAGE & COUNTRY -->
       <div class="question-step" data-step="4">
         <h2 class="question-title">Language & Country</h2>
-        <p class="question-subtitle">Choose one or more languages and countries.</p>
+        <p class="question-subtitle">All filters are optional.</p>
 
-        <div style="margin-bottom:28px;width:100%;max-width:600px;">
-          <label style="display:block;text-align:left;margin-bottom:10px;color:#999;">Languages</label>
-          <div class="multi-select-grid" id="languageOptions">
-            <label class="multi-option"><input type="checkbox" value="hi"> Hindi</label>
-            <label class="multi-option"><input type="checkbox" value="en"> English</label>
-            <label class="multi-option"><input type="checkbox" value="ta"> Tamil</label>
-            <label class="multi-option"><input type="checkbox" value="te"> Telugu</label>
-            <label class="multi-option"><input type="checkbox" value="ml"> Malayalam</label>
-            <label class="multi-option"><input type="checkbox" value="ko"> Korean</label>
-            <label class="multi-option"><input type="checkbox" value="ja"> Japanese</label>
-            <label class="multi-option"><input type="checkbox" value="es"> Spanish</label>
-            <label class="multi-option"><input type="checkbox" value="fr"> French</label>
-          </div>
+        <div style="margin-bottom: 24px; width: 100%; max-width: 500px;">
+          <label style="display: block; text-align: left; margin-bottom: 8px; color: #999999;">Language</label>
+          <select class="text-input" id="languageSelect">
+            <option value="any">Any language</option>
+            <option value="hi">Hindi</option>
+            <option value="en">English</option>
+            <option value="ta">Tamil</option>
+            <option value="te">Telugu</option>
+            <option value="ml">Malayalam</option>
+            <option value="ko">Korean</option>
+            <option value="ja">Japanese</option>
+          </select>
         </div>
 
-        <div style="width:100%;max-width:600px;">
-          <label style="display:block;text-align:left;margin-bottom:10px;color:#999;">Countries</label>
-          <div class="multi-select-grid" id="countryOptions">
-            <label class="multi-option"><input type="checkbox" value="IN"> India</label>
-            <label class="multi-option"><input type="checkbox" value="US"> USA</label>
-            <label class="multi-option"><input type="checkbox" value="GB"> UK</label>
-            <label class="multi-option"><input type="checkbox" value="KR"> South Korea</label>
-            <label class="multi-option"><input type="checkbox" value="JP"> Japan</label>
-            <label class="multi-option"><input type="checkbox" value="FR"> France</label>
-            <label class="multi-option"><input type="checkbox" value="ES"> Spain</label>
-            <label class="multi-option"><input type="checkbox" value="CA"> Canada</label>
-          </div>
+        <div style="width: 100%; max-width: 500px;">
+          <label style="display: block; text-align: left; margin-bottom: 8px; color: #999999;">Country</label>
+          <select class="text-input" id="countrySelect">
+            <option value="any">Any country</option>
+            <option value="IN">India</option>
+            <option value="US">USA</option>
+            <option value="GB">UK</option>
+            <option value="KR">South Korea</option>
+            <option value="JP">Japan</option>
+          </select>
         </div>
       </div>
 
-      <!-- STEP 5: RATING & YEAR RANGE -->
+      <!-- STEP 5: RATING & ERA -->
       <div class="question-step" data-step="5">
         <h2 class="question-title">Rating & Release Timeline</h2>
-        <p class="question-subtitle">Choose the exact release-year range you want.</p>
+        <p class="question-subtitle">Choose the minimum and maximum release year.</p>
 
-        <div style="margin-bottom:34px;width:100%;max-width:600px;">
-          <label style="display:block;text-align:left;margin-bottom:8px;color:#999;">Minimum Rating</label>
+        <div style="margin-bottom: 24px; width: 100%; max-width: 500px;">
+          <label style="display: block; text-align: left; margin-bottom: 8px; color: #999999;">Minimum Rating</label>
           <select class="text-input" id="ratingSelect">
             <option value="0">Any rating</option>
             <option value="6">6+ Rating</option>
@@ -670,36 +595,30 @@
           </select>
         </div>
 
-        <div class="range-wrapper">
-          <label style="display:block;margin-bottom:8px;color:#999;">Release year</label>
-          <div class="range-values">
-            <span>From <strong id="minYearValue">1900</strong></span>
-            <span>To <strong id="maxYearValue">2026</strong></span>
+        <div style="margin-top: 8px; width: 100%; max-width: 600px;">
+          <label style="display: block; text-align: left; margin-bottom: 8px; color: #999999;">Release Timeline</label>
+          <div style="display:flex; justify-content:space-between; color:#999999; margin-bottom:8px;">
+            <span id="minYearLabel">From 2000</span>
+            <span id="maxYearLabel">To 2026</span>
           </div>
-          <div class="range-track">
-            <div class="range-fill" id="rangeFill"></div>
-            <input class="range-input" id="minYearRange" type="range" min="1900" max="2026" value="1900">
-            <input class="range-input" id="maxYearRange" type="range" min="1900" max="2026" value="2026">
+          <div style="position:relative; height:42px;">
+            <input id="minYear" type="range" min="2000" max="2026" value="2000" step="1" style="position:absolute; inset:0; width:100%;">
+            <input id="maxYear" type="range" min="2000" max="2026" value="2026" step="1" style="position:absolute; inset:0; width:100%;">
           </div>
-          <p style="color:#999;font-size:.85rem;margin-top:16px;">
-            Movies from <strong id="rangeSummary">1900 to 2026</strong> only.
-          </p>
+          <p style="color:#777; font-size:0.85rem; margin-top:8px;">Movies released before 2000 are never recommended.</p>
         </div>
       </div>
 
-      <!-- STEP 6: STORY HASHTAGS -->
+      <!-- STEP 6: HASHTAGS -->
       <div class="question-step" data-step="6">
-        <h2 class="question-title">What should the story be about?</h2>
-        <p class="question-subtitle">Use themes and story ideas, not actors or directors.</p>
+        <h2 class="question-title">Story Themes & Hashtags</h2>
+        <p class="question-subtitle">Use story/theme hashtags such as #superhero, #entrepreneurship, #gangster or #fighter.</p>
+
         <div class="search-input-wrapper">
-          <input type="text" class="text-input" id="hashtagInput"
-            placeholder="e.g. #entrepreneurship, #superhero, #commonman" />
+          <input type="text" class="text-input" id="hashtagInput" placeholder="e.g. #superhero, #entrepreneurship, #gangster" />
         </div>
+
         <div class="tags-container" id="hashtagsContainer"></div>
-        <p style="color:#777;max-width:600px;margin-top:18px;font-size:.85rem;">
-          Examples: #entrepreneurship #superhero #commonman #fighter #gangster
-          #revenge #underdog #friendship #survival #ambition #corruption
-        </p>
       </div>
 
       <!-- NAVIGATION BUTTONS -->
@@ -725,16 +644,15 @@
 
       <div class="results-grid" id="resultsGrid"></div>
 
-      <div style="text-align:center;margin-top:40px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+      <div style="text-align: center; margin-top: 40px;">
         <button type="button" class="btn btn-secondary" onclick="resetApp()">Start Again</button>
-        <button type="button" class="btn btn-secondary" onclick="clearRecommendationHistory()">Clear recommendation history</button>
       </div>
     </div>
 
     <!-- EMPTY STATE -->
     <div class="empty-state" id="emptyState">
       <h3 style="color: #ffffff;">We couldn't find a perfect match.</h3>
-      <p style="color: #999999; margin-top: 8px; margin-bottom: 24px;">Try widening the year range or removing one of the hard filters.</p>
+      <p style="color: #999999; margin-top: 8px; margin-bottom: 24px;">Try relaxing one of your filters like rating or release period.</p>
       <button type="button" class="btn btn-primary" onclick="resetApp()">Try Again</button>
     </div>
   </main>
@@ -775,16 +693,13 @@
       genres: [],
       favoriteIds: [],
       favoriteTitles: [],
-      languages: [],
-      countries: [],
       language: 'any',
       country: 'any',
       rating: 0,
-      minYear: 1900,
+      minYear: 2000,
       maxYear: new Date().getFullYear(),
       hashtags: [],
-      watchedIds: [],
-      recommendedIds: JSON.parse(localStorage.getItem('yourchoiceRecommendedIds') || '[]')
+      watchedIds: []
     };
 
     const progressBar = document.getElementById('progressBar');
@@ -800,8 +715,7 @@
       setupPills();
       setupLiveSearch();
       setupHashtags();
-      setupMultiSelects();
-      setupYearRange();
+      setupYearSlider();
     });
 
     function setupPills() {
@@ -970,61 +884,6 @@
       `).join('');
     }
 
-    function setupMultiSelects() {
-      document.querySelectorAll('#languageOptions input, #countryOptions input').forEach(input => {
-        input.addEventListener('change', () => {
-          state.languages = Array.from(document.querySelectorAll('#languageOptions input:checked')).map(el => el.value);
-          state.countries = Array.from(document.querySelectorAll('#countryOptions input:checked')).map(el => el.value);
-        });
-      });
-    }
-
-    function setupYearRange() {
-      const min = document.getElementById('minYearRange');
-      const max = document.getElementById('maxYearRange');
-      const minLabel = document.getElementById('minYearValue');
-      const maxLabel = document.getElementById('maxYearValue');
-      const summary = document.getElementById('rangeSummary');
-      const fill = document.getElementById('rangeFill');
-      const latest = Number(max.max);
-
-      function update() {
-        let lo = Number(min.value);
-        let hi = Number(max.value);
-        if (lo >= hi) {
-          if (document.activeElement === min) lo = hi - 1;
-          else hi = lo + 1;
-        }
-        min.value = lo;
-        max.value = hi;
-        state.minYear = lo;
-        state.maxYear = hi;
-        minLabel.textContent = lo;
-        maxLabel.textContent = hi;
-        summary.textContent = `${lo} to ${hi}`;
-        const left = ((lo - 1900) / (latest - 1900)) * 100;
-        const right = ((hi - 1900) / (latest - 1900)) * 100;
-        fill.style.left = `${left}%`;
-        fill.style.width = `${right - left}%`;
-      }
-
-      min.addEventListener('input', update);
-      max.addEventListener('input', update);
-      update();
-    }
-
-    function saveRecommendationHistory() {
-      state.recommendedIds = Array.from(new Set(state.recommendedIds.map(String)));
-      localStorage.setItem('yourchoiceRecommendedIds', JSON.stringify(state.recommendedIds));
-    }
-
-    function addToRecommendationHistory(movies) {
-      movies.forEach(movie => {
-        state.recommendedIds.push(`${movie.media_type}-${movie.id}`);
-      });
-      saveRecommendationHistory();
-    }
-
     function changeStep(direction) {
       const steps = document.querySelectorAll('.question-step');
       steps[currentStep - 1].classList.remove('active');
@@ -1044,12 +903,31 @@
       nextBtn.innerText = currentStep === totalSteps ? 'Recommend' : 'Next';
     }
 
+    function setupYearSlider() {
+      const min = document.getElementById('minYear');
+      const max = document.getElementById('maxYear');
+      const minLabel = document.getElementById('minYearLabel');
+      const maxLabel = document.getElementById('maxYearLabel');
+      if (!min || !max) return;
+      const sync = () => {
+        if (parseInt(min.value, 10) > parseInt(max.value, 10)) {
+          if (document.activeElement === min) max.value = min.value;
+          else min.value = max.value;
+        }
+        minLabel.textContent = `From ${min.value}`;
+        maxLabel.textContent = `To ${max.value}`;
+      };
+      min.addEventListener('input', sync);
+      max.addEventListener('input', sync);
+      sync();
+    }
+
     async function generateRecommendations() {
-      state.languages = Array.from(document.querySelectorAll('#languageOptions input:checked')).map(el => el.value);
-      state.countries = Array.from(document.querySelectorAll('#countryOptions input:checked')).map(el => el.value);
+      state.language = document.getElementById('languageSelect').value;
+      state.country = document.getElementById('countrySelect').value;
       state.rating = parseFloat(document.getElementById('ratingSelect').value);
-      state.minYear = Number(document.getElementById('minYearRange').value);
-      state.maxYear = Number(document.getElementById('maxYearRange').value);
+      state.minYear = parseInt(document.getElementById('minYear').value, 10);
+      state.maxYear = parseInt(document.getElementById('maxYear').value, 10);
 
       questionnaireForm.style.display = 'none';
       document.getElementById('progressContainer').style.display = 'none';
@@ -1066,7 +944,6 @@
         loadingState.style.display = 'none';
 
         if (data.recommendations && data.recommendations.length > 0) {
-          addToRecommendationHistory(data.recommendations);
           renderResults(data.recommendations);
           resultsContainer.style.display = 'block';
         } else {
@@ -1079,35 +956,37 @@
       }
     }
 
-    function createMovieCard(movie) {
-      const poster = movie.poster_path
-        ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
-        : 'https://via.placeholder.com/500x750?text=No+Poster';
-      const year = (movie.release_date || movie.first_air_date || '').substring(0, 4);
-      const rating = movie.vote_average ? Number(movie.vote_average).toFixed(1) : 'N/A';
-      const title = movie.title || movie.name;
-
-      return `
-        <div class="movie-card" id="card-${movie.id}">
-          <img class="card-poster" src="${poster}" alt="${title}" onclick="openDetails('${movie.media_type}', ${movie.id})" />
-          <div class="card-body">
-            <h3 class="card-title" onclick="openDetails('${movie.media_type}', ${movie.id})">${title}</h3>
-            <div class="card-meta">${year} · ⭐ ${rating} · ${(movie.original_language || '').toUpperCase()}</div>
-            <p class="card-overview">${movie.overview || 'No description available.'}</p>
-            <div class="card-reason"><strong>Why recommended:</strong><br/>${movie.matchReason || 'Tailored match based on your preferences'}</div>
-            <button type="button" class="watched-btn" onclick="markAsWatched(${movie.id}, '${movie.media_type}')">✓ I've watched this</button>
-          </div>
-        </div>
-      `;
-    }
-
     function renderResults(movies) {
-      resultsGrid.innerHTML = movies.map(createMovieCard).join('');
+      resultsGrid.innerHTML = movies.map(movie => {
+        const poster = movie.poster_path 
+          ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
+          : 'https://via.placeholder.com/500x750?text=No+Poster';
+        
+        const year = (movie.release_date || movie.first_air_date || '').substring(0, 4);
+        const rating = movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A';
+        const title = movie.title || movie.name;
+
+        return `
+          <div class="movie-card" id="card-${movie.id}">
+            <img class="card-poster" src="${poster}" alt="${title}" onclick="openDetails('${movie.media_type}', ${movie.id})" />
+            <div class="card-body">
+              <h3 class="card-title" onclick="openDetails('${movie.media_type}', ${movie.id})">${title}</h3>
+              <div class="card-meta">${year} · ⭐ ${rating} · ${(movie.original_language || '').toUpperCase()}</div>
+              <p class="card-overview">${movie.overview || 'No description available.'}</p>
+              
+              <div class="card-reason">
+                <strong>Why recommended:</strong><br/>${movie.matchReason}
+              </div>
+
+              <button type="button" class="watched-btn" onclick="markAsWatched(${movie.id})">✓ I've watched this</button>
+            </div>
+          </div>
+        `;
+      }).join('');
     }
 
-    async function markAsWatched(movieId, mediaType = 'movie') {
-      state.watchedIds.push(`${mediaType}-${movieId}`, String(movieId));
-
+    async function markAsWatched(movieId) {
+      state.watchedIds.push(movieId);
       const card = document.getElementById(`card-${movieId}`);
       if (card) {
         card.style.opacity = '0.3';
@@ -1121,13 +1000,23 @@
           body: JSON.stringify(state)
         });
         const data = await res.json();
-
+        
         if (data.recommendations && data.recommendations.length > 0) {
           const replacement = data.recommendations[0];
-          addToRecommendationHistory([replacement]);
-          if (card) card.outerHTML = createMovieCard(replacement);
-        } else if (card) {
-          card.remove();
+          if (card) {
+            card.outerHTML = `
+              <div class="movie-card" id="card-${replacement.id}">
+                <img class="card-poster" src="${replacement.poster_path ? 'https://image.tmdb.org/t/p/w500' + replacement.poster_path : ''}" alt="${replacement.title || replacement.name}" onclick="openDetails('${replacement.media_type}', ${replacement.id})" />
+                <div class="card-body">
+                  <h3 class="card-title" onclick="openDetails('${replacement.media_type}', ${replacement.id})">${replacement.title || replacement.name}</h3>
+                  <div class="card-meta">${(replacement.release_date || replacement.first_air_date || '').substring(0, 4)} · ⭐ ${replacement.vote_average.toFixed(1)}</div>
+                  <p class="card-overview">${replacement.overview || 'No description available.'}</p>
+                  <div class="card-reason"><strong>Why recommended:</strong><br/>${replacement.matchReason}</div>
+                  <button type="button" class="watched-btn" onclick="markAsWatched(${replacement.id})">✓ I've watched this</button>
+                </div>
+              </div>
+            `;
+          }
         }
       } catch (err) {
         console.error('Replacement error:', err);
@@ -1176,40 +1065,21 @@
       document.getElementById('modalOverlay').classList.remove('active');
     }
 
-    function clearRecommendationHistory() {
-      state.recommendedIds = [];
-      state.watchedIds = [];
-      localStorage.removeItem('yourchoiceRecommendedIds');
-      resetApp();
-    }
-
     function resetApp() {
       currentStep = 1;
       state.moods = [];
       state.genres = [];
       state.favoriteIds = [];
       state.favoriteTitles = [];
-      state.languages = [];
-      state.countries = [];
       state.language = 'any';
       state.country = 'any';
       state.rating = 0;
-      state.minYear = 1900;
+      state.minYear = 2000;
       state.maxYear = new Date().getFullYear();
       state.hashtags = [];
       state.watchedIds = [];
 
       document.querySelectorAll('.pill-btn').forEach(btn => btn.classList.remove('selected'));
-      document.querySelectorAll('#languageOptions input, #countryOptions input').forEach(input => input.checked = false);
-
-      const minYearInput = document.getElementById('minYearRange');
-      const maxYearInput = document.getElementById('maxYearRange');
-      if (minYearInput && maxYearInput) {
-        minYearInput.value = 1900;
-        maxYearInput.value = new Date().getFullYear();
-        minYearInput.dispatchEvent(new Event('input'));
-      }
-
       renderFavoriteChips();
       renderHashtagChips();
 
@@ -1229,32 +1099,5 @@
       nextBtn.innerText = 'Next';
     }
   </script>
-
-  <footer class="site-footer">
-    <div class="footer-content">
-      <nav class="footer-links" aria-label="Footer">
-        <a href="#" onclick="return false;">Terms</a>
-        <span class="footer-divider">•</span>
-        <a href="#" onclick="return false;">Privacy</a>
-        <span class="footer-divider">•</span>
-        <a href="#" onclick="return false;">Security</a>
-        <span class="footer-divider">•</span>
-        <a href="#" onclick="return false;">Status</a>
-        <span class="footer-divider">•</span>
-        <a href="#" onclick="return false;">Community</a>
-        <span class="footer-divider">•</span>
-        <a href="#" onclick="return false;">Docs</a>
-        <span class="footer-divider">•</span>
-        <a href="#" onclick="return false;">Contact</a>
-        <span class="footer-divider">•</span>
-        <a href="#" onclick="return false;">Manage Cookies</a>
-      </nav>
-
-      <div class="footer-credit">
-        Site by - <strong>Yojit</strong>
-      </div>
-    </div>
-  </footer>
-
 </body>
 </html>
