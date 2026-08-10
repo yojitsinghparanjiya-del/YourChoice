@@ -1,353 +1,772 @@
-import express from 'express';
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-dotenv.config();
+const express = require('express');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const TMDB_API_KEY = process.env.TMDB_API_KEY;
-const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname)));
 
-// Simple In-Memory Cache
-const cache = new Map();
-const CACHE_TTL = 1000 * 60 * 10; // 10 minutes
+const TMDB_API_KEY = process.env.TMDB_API_KEY;
 
 async function fetchFromTMDB(endpoint, params = {}) {
-  if (!TMDB_API_KEY || TMDB_API_KEY === 'YOUR_TMDB_API_KEY_HERE') {
-    throw new Error('TMDB API Key is not configured in .env');
-  }
+  const url = new URL(`https://api.themoviedb.org/3${endpoint}`);
+  url.searchParams.set('api_key', TMDB_API_KEY);
 
-  const queryParams = new URLSearchParams({
-    api_key: TMDB_API_KEY,
-    ...params
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      url.searchParams.set(key, value);
+    }
   });
 
-  const url = `${TMDB_BASE_URL}${endpoint}?${queryParams.toString()}`;
-
-  if (cache.has(url)) {
-    const { timestamp, data } = cache.get(url);
-    if (Date.now() - timestamp < CACHE_TTL) {
-      return data;
-    }
-  }
-
   const response = await fetch(url);
+
   if (!response.ok) {
-    throw new Error(`TMDB HTTP error! Status: ${response.status}`);
+    throw new Error(`TMDB error ${response.status}`);
   }
 
-  const data = await response.json();
-  cache.set(url, { timestamp: Date.now(), data });
-  return data;
+  return response.json();
 }
-
-// ---------------- API ENDPOINTS ----------------
-
-// Live search for auto-complete & general search
-app.get('/api/search', async (req, res) => {
-  try {
-    const { query, type = 'multi' } = req.query;
-    if (!query || query.trim().length < 2) {
-      return res.json({ results: [] });
-    }
-
-    const endpoint = type === 'person' ? '/search/person' : '/search/multi';
-    const data = await fetchFromTMDB(endpoint, { query, include_adult: false });
-    
-    // Normalize and filter valid results
-    const results = (data.results || []).filter(item => 
-      ['movie', 'tv', 'person'].includes(item.media_type) || type === 'person'
-    ).slice(0, 8);
-
-    res.json({ results });
-  } catch (error) {
-    console.error('Search error:', error.message);
-    res.status(500).json({ error: 'Failed to search TMDB.' });
-  }
-});
-
-// Single movie or TV details
-app.get('/api/details/:type/:id', async (req, res) => {
-  try {
-    const { type, id } = req.params;
-    const mediaType = type === 'tv' ? 'tv' : 'movie';
-    const data = await fetchFromTMDB(`/${mediaType}/${id}`, {
-      append_to_response: 'credits,watch/providers,keywords'
-    });
-    res.json(data);
-  } catch (error) {
-    console.error('Details error:', error.message);
-    res.status(500).json({ error: 'Failed to fetch details.' });
-  }
-});
-
-// Watch providers
-app.get('/api/providers/:type/:id', async (req, res) => {
-  try {
-    const { type, id } = req.params;
-    const region = req.query.region || 'IN';
-    const mediaType = type === 'tv' ? 'tv' : 'movie';
-    const data = await fetchFromTMDB(`/${mediaType}/${id}/watch/providers`);
-    const regionData = data.results ? data.results[region] || null : null;
-    res.json({ region, providers: regionData });
-  } catch (error) {
-    console.error('Providers error:', error.message);
-    res.status(500).json({ error: 'Failed to fetch watch providers.' });
-  }
-});
 
 // Core Recommendation Engine
 app.post('/api/recommendations', async (req, res) => {
   try {
     const {
-      mediaType = 'both', // 'movie', 'tv', 'both'
+      mediaType = 'both',
       moods = [],
       genres = [],
       favoriteIds = [],
-      runtime = 'any',
+      languages = [],
+      countries = [],
       language = 'any',
       country = 'any',
       rating = 0,
-      releasePeriod = 'any',
+      minYear = 1900,
+      maxYear = new Date().getFullYear(),
       hashtags = [],
-      watchedIds = []
+      watchedIds = [],
+      recommendedIds = []
     } = req.body;
 
-    let candidatePool = [];
-    const favoriteCredits = { cast: new Set(), crew: new Set(), genres: new Set(), keywords: new Set() };
+    const selectedLanguages = languages.length
+      ? languages.map(String)
+      : (language !== 'any' ? [String(language)] : []);
 
-    // 1. Process Favorites to extract deep connections
-    for (const favId of favoriteIds) {
+    const selectedCountries = countries.length
+      ? countries.map(String)
+      : (country !== 'any' ? [String(country)] : []);
+
+    let lowerYear = Number(minYear) || 1900;
+    let upperYear = Number(maxYear) || new Date().getFullYear();
+
+    if (lowerYear > upperYear) {
+      [lowerYear, upperYear] = [upperYear, lowerYear];
+    }
+
+    const selectedGenres = genres
+      .map(Number)
+      .filter(Number.isFinite);
+
+    const selectedMoods = moods
+      .map(m => String(m).toLowerCase().trim())
+      .filter(Boolean);
+
+    const selectedTags = hashtags
+      .map(t => String(t).replace(/^#/, '').trim().toLowerCase())
+      .filter(Boolean);
+
+    // Movies already watched or already recommended are excluded.
+    const excludedIds = new Set([
+      ...watchedIds.map(String),
+      ...recommendedIds.map(String),
+      ...favoriteIds.map(String)
+    ]);
+
+    // ---------------------------------------------------------
+    // FAVORITE MOVIE ANALYSIS
+    // ---------------------------------------------------------
+
+    const favoriteGenreFrequency = new Map();
+    const favoriteKeywords = new Set();
+
+    for (const favoriteId of favoriteIds) {
       try {
-        const item = await fetchFromTMDB(`/movie/${favId}`, { append_to_response: 'credits,keywords,similar' });
-        
-        if (item.genres) item.genres.forEach(g => favoriteCredits.genres.add(g.id));
-        if (item.credits?.cast) item.credits.cast.slice(0, 5).forEach(c => favoriteCredits.cast.add(c.id));
-        if (item.credits?.crew) {
-          item.credits.crew.filter(c => c.job === 'Director').forEach(d => favoriteCredits.crew.add(d.id));
-        }
-        if (item.keywords?.keywords) item.keywords.keywords.forEach(k => favoriteCredits.keywords.add(k.id));
+        const favorite = await fetchFromTMDB(`/movie/${favoriteId}`, {
+          append_to_response: 'keywords'
+        });
 
-        // Gather similar movies directly
-        if (item.similar?.results) {
-          candidatePool.push(...item.similar.results.map(r => ({ ...r, media_type: 'movie' })));
-        }
-      } catch (err) {
-        // Skip invalid favorite IDs gracefully
+        (favorite.genres || []).forEach(genre => {
+          favoriteGenreFrequency.set(
+            genre.id,
+            (favoriteGenreFrequency.get(genre.id) || 0) + 1
+          );
+        });
+
+        (favorite.keywords?.keywords || []).forEach(keyword => {
+          favoriteKeywords.add(
+            String(keyword.name).toLowerCase()
+          );
+        });
+      } catch {
+        // Ignore invalid favorite IDs.
       }
     }
 
-    // 2. Resolve Hashtags to Person IDs or Keyword IDs
-    const hashtagPeopleIds = [];
-    for (const tag of hashtags) {
-      const cleanTag = tag.replace(/^#/, '').trim();
-      if (!cleanTag) continue;
-      try {
-        const searchRes = await fetchFromTMDB('/search/person', { query: cleanTag });
-        if (searchRes.results && searchRes.results.length > 0) {
-          hashtagPeopleIds.push(searchRes.results[0].id);
-        }
-      } catch (err) {
-        // Ignore hashtag search errors
-      }
-    }
+    // ---------------------------------------------------------
+    // MOOD DEFINITIONS
+    // ---------------------------------------------------------
 
-    // 3. Perform TMDB Discover Queries
-    const typesToFetch = mediaType === 'both' ? ['movie', 'tv'] : [mediaType];
+    const moodGenreMap = {
+      funny: [35],
+      scary: [27],
+      romantic: [10749],
+      exciting: [28, 12, 53],
+      dark: [80, 9648, 53, 27],
+      emotional: [18, 10749],
+      'thought-provoking': [878, 99, 18, 9648],
+      'feel-good': [35, 10751, 10749],
+      relaxing: [35, 10751, 16, 10402],
+      suspenseful: [53, 9648, 80],
+      adventurous: [12, 28, 14, 878],
+      inspiring: [18, 36, 99, 10751]
+    };
 
-    for (const type of typesToFetch) {
-      const discoverParams = {
+    const moodWords = {
+      funny: [
+        'funny',
+        'humor',
+        'comedy',
+        'hilarious',
+        'comic',
+        'laugh'
+      ],
+
+      scary: [
+        'horror',
+        'haunted',
+        'ghost',
+        'monster',
+        'terror',
+        'survive'
+      ],
+
+      romantic: [
+        'romance',
+        'romantic',
+        'love',
+        'relationship',
+        'couple'
+      ],
+
+      exciting: [
+        'action',
+        'adventure',
+        'mission',
+        'battle',
+        'chase',
+        'fight',
+        'escape'
+      ],
+
+      dark: [
+        'dark',
+        'crime',
+        'murder',
+        'killer',
+        'corruption',
+        'revenge',
+        'danger'
+      ],
+
+      emotional: [
+        'emotional',
+        'family',
+        'loss',
+        'grief',
+        'love',
+        'struggle'
+      ],
+
+      'thought-provoking': [
+        'truth',
+        'identity',
+        'science',
+        'future',
+        'society',
+        'humanity',
+        'mystery'
+      ],
+
+      'feel-good': [
+        'friendship',
+        'family',
+        'happy',
+        'hope',
+        'joy',
+        'comedy',
+        'dream'
+      ],
+
+      relaxing: [
+        'family',
+        'friendship',
+        'journey',
+        'music',
+        'nature',
+        'comedy'
+      ],
+
+      suspenseful: [
+        'mystery',
+        'investigation',
+        'detective',
+        'crime',
+        'secret',
+        'killer',
+        'thriller'
+      ],
+
+      adventurous: [
+        'adventure',
+        'journey',
+        'explore',
+        'quest',
+        'expedition',
+        'survival'
+      ],
+
+      inspiring: [
+        'dream',
+        'ambition',
+        'success',
+        'overcome',
+        'struggle',
+        'inspire',
+        'achievement'
+      ]
+    };
+
+    // ---------------------------------------------------------
+    // GET MOVIE / TV POOL
+    // ---------------------------------------------------------
+
+    const types =
+      mediaType === 'both'
+        ? ['movie', 'tv']
+        : [mediaType];
+
+    const pool = [];
+
+    for (const type of types) {
+      const params = {
         sort_by: 'popularity.desc',
-        'vote_count.gte': 50,
-        page: 1
+        'vote_count.gte': 50
       };
 
-      if (genres.length > 0) {
-        discoverParams.with_genres = genres.join(',');
+      if (selectedGenres.length) {
+        params.with_genres = selectedGenres.join('|');
       }
 
-      if (language !== 'any') {
-        discoverParams.with_original_language = language;
+      if (selectedLanguages.length === 1) {
+        params.with_original_language =
+          selectedLanguages[0];
       }
 
-      if (country !== 'any') {
-        discoverParams.with_origin_country = country;
+      if (selectedCountries.length) {
+        params.with_origin_country =
+          selectedCountries.join('|');
       }
 
-      if (rating > 0) {
-        discoverParams['vote_average.gte'] = rating;
+      if (type === 'movie') {
+        params['primary_release_date.gte'] =
+          `${lowerYear}-01-01`;
+
+        params['primary_release_date.lte'] =
+          `${upperYear}-12-31`;
+      } else {
+        params['first_air_date.gte'] =
+          `${lowerYear}-01-01`;
+
+        params['first_air_date.lte'] =
+          `${upperYear}-12-31`;
       }
 
-      if (hashtagPeopleIds.length > 0) {
-        discoverParams.with_cast = hashtagPeopleIds.join(',');
-      }
+      const pages = await Promise.allSettled([
+        fetchFromTMDB(`/discover/${type}`, {
+          ...params,
+          page: 1
+        }),
 
-      // Date ranges for release periods
-      if (releasePeriod !== 'any') {
-        const year = parseInt(releasePeriod);
-        if (!isNaN(year)) {
-          const startYear = year - 5;
-          const endYear = year + 5;
-          if (type === 'movie') {
-            discoverParams['primary_release_date.gte'] = `${startYear}-01-01`;
-            discoverParams['primary_release_date.lte'] = `${endYear}-12-31`;
-          } else {
-            discoverParams['first_air_date.gte'] = `${startYear}-01-01`;
-            discoverParams['first_air_date.lte'] = `${endYear}-12-31`;
-          }
-        }
-      }
+        fetchFromTMDB(`/discover/${type}`, {
+          ...params,
+          page: 2
+        }),
 
-      // Fetch Discover Page 1 & 2 for rich candidate diversity
-      const [p1, p2] = await Promise.allSettled([
-        fetchFromTMDB(`/discover/${type}`, discoverParams),
-        fetchFromTMDB(`/discover/${type}`, { ...discoverParams, page: 2 })
+        fetchFromTMDB(`/discover/${type}`, {
+          ...params,
+          page: 3
+        })
       ]);
 
-      if (p1.status === 'fulfilled' && p1.value.results) {
-        candidatePool.push(...p1.value.results.map(item => ({ ...item, media_type: type })));
-      }
-      if (p2.status === 'fulfilled' && p2.value.results) {
-        candidatePool.push(...p2.value.results.map(item => ({ ...item, media_type: type })));
-      }
-    }
-
-    // Fallback: If discover was too strict, grab general popular items
-    if (candidatePool.length < 10) {
-      for (const type of typesToFetch) {
-        const popData = await fetchFromTMDB(`/${type}/popular`);
-        if (popData.results) {
-          candidatePool.push(...popData.results.map(item => ({ ...item, media_type: type })));
-        }
-      }
-    }
-
-    // 4. Deduplicate candidates and exclude already watched/favorite items
-    const uniqueMap = new Map();
-    const excludeSet = new Set([...watchedIds.map(String), ...favoriteIds.map(String)]);
-
-    candidatePool.forEach(item => {
-      const key = `${item.media_type}-${item.id}`;
-      if (!excludeSet.has(String(item.id)) && !uniqueMap.has(key)) {
-        uniqueMap.set(key, item);
-      }
-    });
-
-    const uniqueCandidates = Array.from(uniqueMap.values());
-
-    // 5. Intelligent Multi-Factor Scoring Engine
-    const scoredResults = uniqueCandidates.map(item => {
-      let score = 0;
-      const reasons = [];
-
-      // A. Genre Match
-      if (item.genre_ids && genres.length > 0) {
-        const matchCount = item.genre_ids.filter(g => genres.includes(g)).length;
-        if (matchCount > 0) {
-          score += matchCount * 15;
-          reasons.push('Matches your selected genres');
-        }
-      }
-
-      // B. Favorite Movie Similarity
-      if (item.genre_ids && favoriteCredits.genres.size > 0) {
-        const favGenreMatch = item.genre_ids.filter(g => favoriteCredits.genres.has(g)).length;
-        if (favGenreMatch > 0) {
-          score += favGenreMatch * 10;
-          reasons.push('Shares themes with your favorite movies');
-        }
-      }
-
-      // C. Rating Bonus
-      if (item.vote_average) {
-        score += item.vote_average * 2.5;
-        if (item.vote_average >= 8.0) {
-          reasons.push('Critically acclaimed');
-        }
-      }
-
-      // D. Language / Country
-      if (language !== 'any' && item.original_language === language) {
-        score += 20;
-        reasons.push(`Matches preferred language (${language.toUpperCase()})`);
-      }
-
-      // E. Release Period Soft Matching
-      const releaseYear = parseInt((item.release_date || item.first_air_date || '').substring(0, 4));
-      if (!isNaN(releaseYear) && releasePeriod !== 'any') {
-        const targetYear = parseInt(releasePeriod);
-        if (!isNaN(targetYear)) {
-          const diff = Math.abs(releaseYear - targetYear);
-          if (diff <= 3) {
-            score += 20;
-            reasons.push(`Released around your target era (${releaseYear})`);
-          } else if (diff <= 7) {
-            score += 10;
-          }
-        }
-      }
-
-      // F. Mood Boost (Map moods to relevant genres)
-      const moodGenreMap = {
-        'funny': [35],
-        'scary': [27],
-        'romantic': [10749],
-        'exciting': [28, 12],
-        'dark': [80, 9648, 53],
-        'emotional': [18],
-        'thought-provoking': [878, 99],
-        'feel-good': [35, 10751],
-        'suspenseful': [53, 9648]
-      };
-
-      moods.forEach(mood => {
-        const mappedGenres = moodGenreMap[mood.toLowerCase()] || [];
-        if (item.genre_ids && item.genre_ids.some(g => mappedGenres.includes(g))) {
-          score += 12;
-          reasons.push(`Fits your ${mood.toLowerCase()} mood`);
+      pages.forEach(result => {
+        if (
+          result.status === 'fulfilled' &&
+          result.value?.results
+        ) {
+          pool.push(
+            ...result.value.results.map(movie => ({
+              ...movie,
+              media_type: type
+            }))
+          );
         }
       });
+    }
 
-      // Popularity nudge
-      score += Math.min(item.popularity || 0, 15) * 0.2;
+    // ---------------------------------------------------------
+    // FAVORITE-SIMILAR MOVIES
+    // ---------------------------------------------------------
 
-      // Unique explanation generator
-      const uniqueReasons = Array.from(new Set(reasons));
-      const matchReason = uniqueReasons.length > 0 
-        ? uniqueReasons.slice(0, 2).join(' • ')
-        : 'Tailored match based on your preferences';
+    for (const favoriteId of favoriteIds) {
+      try {
+        const similar = await fetchFromTMDB(
+          `/movie/${favoriteId}/similar`,
+          { page: 1 }
+        );
+
+        if (similar.results) {
+          pool.push(
+            ...similar.results.map(movie => ({
+              ...movie,
+              media_type: 'movie'
+            }))
+          );
+        }
+      } catch {
+        // Ignore invalid favorites.
+      }
+    }
+
+    // ---------------------------------------------------------
+    // REMOVE DUPLICATES / PREVIOUSLY SHOWN MOVIES
+    // ---------------------------------------------------------
+
+    const unique = new Map();
+
+    pool.forEach(movie => {
+      const key = `${movie.media_type}-${movie.id}`;
+
+      if (
+        !excludedIds.has(String(movie.id)) &&
+        !excludedIds.has(key) &&
+        !unique.has(key)
+      ) {
+        unique.set(key, movie);
+      }
+    });
+
+    const getYear = movie =>
+      parseInt(
+        (
+          movie.release_date ||
+          movie.first_air_date ||
+          ''
+        ).slice(0, 4),
+        10
+      );
+
+    const movieText = movie =>
+      [
+        movie.title,
+        movie.name,
+        movie.overview
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+    // ---------------------------------------------------------
+    // HARD FILTERS
+    // ---------------------------------------------------------
+
+    let candidates = [...unique.values()].filter(movie => {
+      const year = getYear(movie);
+
+      // YEAR RANGE
+      if (
+        !Number.isFinite(year) ||
+        year < lowerYear ||
+        year > upperYear
+      ) {
+        return false;
+      }
+
+      // MINIMUM RATING
+      if (
+        rating > 0 &&
+        Number(movie.vote_average || 0) < Number(rating)
+      ) {
+        return false;
+      }
+
+      // GENRE
+      if (
+        selectedGenres.length &&
+        !(movie.genre_ids || []).some(genre =>
+          selectedGenres.includes(Number(genre))
+        )
+      ) {
+        return false;
+      }
+
+      // LANGUAGE
+      if (
+        selectedLanguages.length &&
+        !selectedLanguages.includes(
+          String(movie.original_language || '').toLowerCase()
+        )
+      ) {
+        return false;
+      }
+
+      // MOOD
+      if (selectedMoods.length) {
+        const text = movieText(movie);
+
+        const moodPass = selectedMoods.some(mood => {
+          const genrePass =
+            (movie.genre_ids || []).some(genre =>
+              (moodGenreMap[mood] || []).includes(
+                Number(genre)
+              )
+            );
+
+          const textPass =
+            (moodWords[mood] || []).some(word =>
+              text.includes(word)
+            );
+
+          return genrePass || textPass;
+        });
+
+        if (!moodPass) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    // ---------------------------------------------------------
+    // GET DETAILED INFORMATION
+    // ---------------------------------------------------------
+
+    const detailed = [];
+
+    for (let i = 0; i < candidates.length; i += 12) {
+      const batch = candidates.slice(i, i + 12);
+
+      const results = await Promise.allSettled(
+        batch.map(movie =>
+          fetchFromTMDB(
+            `/${movie.media_type}/${movie.id}`,
+            {
+              append_to_response: 'keywords'
+            }
+          )
+        )
+      );
+
+      results.forEach((result, index) => {
+        detailed.push(
+          result.status === 'fulfilled'
+            ? {
+                ...batch[index],
+                ...result.value
+              }
+            : batch[index]
+        );
+      });
+
+      if (detailed.length >= 90) {
+        break;
+      }
+    }
+
+    candidates = detailed.filter(movie => {
+      // COUNTRY
+      if (selectedCountries.length) {
+        const origins = movie.origin_country || [];
+
+        if (
+          !origins.some(countryCode =>
+            selectedCountries.includes(countryCode)
+          )
+        ) {
+          return false;
+        }
+      }
+
+      // MOOD
+      if (selectedMoods.length) {
+        const text = [
+          movie.title,
+          movie.name,
+          movie.overview,
+          ...(movie.keywords?.keywords || [])
+            .map(keyword => keyword.name)
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+
+        const moodPass = selectedMoods.some(mood => {
+          const genrePass =
+            (
+              movie.genres ||
+              movie.genre_ids ||
+              []
+            )
+              .map(genre => Number(genre.id ?? genre))
+              .some(id =>
+                (moodGenreMap[mood] || []).includes(id)
+              );
+
+          const textPass =
+            (moodWords[mood] || []).some(word =>
+              text.includes(word)
+            );
+
+          return genrePass || textPass;
+        });
+
+        if (!moodPass) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    // ---------------------------------------------------------
+    // HASHTAG MATCHING
+    // ---------------------------------------------------------
+
+    const cleanTag = tag =>
+      tag
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+
+    const tags = selectedTags
+      .map(cleanTag)
+      .filter(Boolean);
+
+    const hashtagScore = (movie, tag) => {
+      const text = [
+        movie.title,
+        movie.name,
+        movie.overview,
+        ...(movie.keywords?.keywords || [])
+          .map(keyword => keyword.name)
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ');
+
+      if (!text) {
+        return 0;
+      }
+
+      if (text.includes(tag)) {
+        return 1;
+      }
+
+      const words = tag
+        .split(' ')
+        .filter(Boolean);
+
+      if (!words.length) {
+        return 0;
+      }
+
+      return (
+        words.filter(word =>
+          text.includes(word)
+        ).length / words.length
+      );
+    };
+
+    // ---------------------------------------------------------
+    // FAVORITE GENRE PRIORITY
+    // ---------------------------------------------------------
+
+    const maxFavoriteFrequency = Math.max(
+      1,
+      ...favoriteGenreFrequency.values()
+    );
+
+    // ---------------------------------------------------------
+    // FINAL SCORING
+    // ---------------------------------------------------------
+
+    const scored = candidates.map(movie => {
+      let score = 0;
+
+      const reasons = [];
+
+      const movieGenres = (
+        movie.genre_ids ||
+        movie.genres?.map(genre => genre.id) ||
+        []
+      ).map(Number);
+
+      // FAVORITE GENRES — HIGH PRIORITY
+      const favoriteMatches =
+        movieGenres.filter(genre =>
+          favoriteGenreFrequency.has(genre)
+        );
+
+      if (favoriteMatches.length) {
+        const favoriteScore =
+          favoriteMatches.reduce(
+            (sum, genre) =>
+              sum +
+              favoriteGenreFrequency.get(genre) /
+                maxFavoriteFrequency,
+            0
+          );
+
+        score += favoriteScore * 45;
+
+        reasons.push(
+          'Matches your favorite-movie genres'
+        );
+      }
+
+      // SELECTED GENRES
+      const selectedMatches =
+        movieGenres.filter(genre =>
+          selectedGenres.includes(genre)
+        ).length;
+
+      if (selectedMatches) {
+        score += selectedMatches * 20;
+
+        reasons.push(
+          'Matches your selected genres'
+        );
+      }
+
+      // STORY HASHTAGS
+      if (tags.length) {
+        const tagMatch = tags.reduce(
+          (sum, tag) =>
+            sum + hashtagScore(movie, tag),
+          0
+        );
+
+        if (tagMatch > 0) {
+          score += tagMatch * 35;
+
+          reasons.push(
+            'Matches your story themes'
+          );
+        }
+      }
+
+      // RATING
+      const movieRating =
+        Number(movie.vote_average || 0);
+
+      const voteCount =
+        Number(movie.vote_count || 0);
+
+      score += movieRating * 4;
+
+      // POPULARITY / HIT PRIORITY
+      score +=
+        Math.min(
+          Number(movie.popularity || 0),
+          100
+        ) * 0.65;
+
+      if (
+        movieRating >= 7.5 &&
+        voteCount >= 1000
+      ) {
+        score += 20;
+
+        reasons.push('Popular hit');
+      } else if (voteCount >= 500) {
+        score += 8;
+      }
+
+      if (movieRating >= 8) {
+        reasons.push('Highly rated');
+      }
+
+      // FAVORITE KEYWORDS
+      if (
+        favoriteKeywords.size &&
+        movie.keywords?.keywords
+      ) {
+        const keywordMatches =
+          movie.keywords.keywords.filter(keyword =>
+            favoriteKeywords.has(
+              String(keyword.name).toLowerCase()
+            )
+          ).length;
+
+        if (keywordMatches) {
+          score += keywordMatches * 8;
+
+          reasons.push(
+            'Shares themes with your favorites'
+          );
+        }
+      }
 
       return {
-        ...item,
+        ...movie,
         score,
-        matchReason
+        matchReason:
+          Array.from(
+            new Set(reasons)
+          )
+            .slice(0, 3)
+            .join(' • ') ||
+          'Tailored match based on your preferences'
       };
     });
 
-    // 6. Sort by Score descending and select top recommendations
-    scoredResults.sort((a, b) => b.score - a.score);
+    scored.sort(
+      (a, b) => b.score - a.score
+    );
 
     res.json({
-      total: scoredResults.length,
-      recommendations: scoredResults.slice(0, 12)
+      total: scored.length,
+      recommendations:
+        scored.slice(0, 12)
     });
 
   } catch (error) {
-    console.error('Recommendation Error:', error);
-    res.status(500).json({ error: 'Failed to generate recommendations.' });
+    console.error(
+      'Recommendation Error:',
+      error
+    );
+
+    res.status(500).json({
+      error:
+        'Failed to generate recommendations.'
+    });
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`===================================================`);
-  console.log(`YourChoice Web App is running on http://localhost:${PORT}`);
-  console.log(`===================================================`);
+// ---------------------------------------------------------
+// EXISTING SERVER ROUTES / START SERVER
+// ---------------------------------------------------------
+
+app.listen(PORT, () => {
+  console.log(`YourChoice running on port ${PORT}`);
 });
