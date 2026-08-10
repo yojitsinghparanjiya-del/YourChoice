@@ -160,7 +160,6 @@ app.get(
 
 /* =========================================================
    RECOMMENDATION ENGINE
-=========================================================
 
    PRIORITY:
 
@@ -172,16 +171,16 @@ app.get(
    6. MOOD
    7. MINIMUM RATING
 
-   ADDITIONAL RULE:
+   ADDITIONAL RULES:
 
-   TOP 5
-   -------
-   Prefer SUPERHIT / BLOCKBUSTER movies
-   that ALSO match the requested theme.
-
-   NEVER use a random popular movie just to fill
-   the recommendation list.
-
+   - Movies before 2000 are COMPLETELY BLOCKED.
+   - Top 5 prefer superhit/blockbuster movies
+     matching the requested theme.
+   - Already watched/recommended movies are excluded.
+   - Hashtags are matched against descriptions,
+     taglines and TMDB keywords.
+   - No random popular fallback.
+   - Clearly child-targeted movies are excluded.
 ========================================================= */
 
 app.post("/api/recommendations", async (req, res) => {
@@ -206,7 +205,7 @@ app.post("/api/recommendations", async (req, res) => {
 
       rating = 0,
 
-      minYear = 1900,
+      minYear = 2000,
 
       maxYear = new Date().getFullYear(),
 
@@ -268,24 +267,35 @@ app.post("/api/recommendations", async (req, res) => {
           : [];
 
 
+    /*
+      ABSOLUTE MINIMUM YEAR = 2000
+
+      Even if the frontend sends 1980,
+      the server will use 2000.
+    */
+
     let fromYear =
-      Number(minYear);
+      Math.max(
+        2000,
+        Number(minYear)
+      );
 
     let toYear =
       Number(maxYear);
 
 
     if (!Number.isFinite(fromYear)) {
-      fromYear = 1900;
+      fromYear = 2000;
     }
 
     if (!Number.isFinite(toYear)) {
-      toYear = new Date().getFullYear();
+      toYear =
+        new Date().getFullYear();
     }
 
 
     fromYear = Math.max(
-      1900,
+      2000,
       Math.min(
         fromYear,
         new Date().getFullYear()
@@ -294,7 +304,7 @@ app.post("/api/recommendations", async (req, res) => {
 
 
     toYear = Math.max(
-      1900,
+      2000,
       Math.min(
         toYear,
         new Date().getFullYear()
@@ -356,10 +366,7 @@ app.post("/api/recommendations", async (req, res) => {
         movie.title,
         movie.name,
         movie.overview,
-
-        ...(movie.tagline
-          ? [movie.tagline]
-          : []),
+        movie.tagline,
 
         ...(movie.keywords?.keywords || [])
           .map(k => k.name)
@@ -392,15 +399,6 @@ app.post("/api/recommendations", async (req, res) => {
 
     /* =====================================================
        SPECIFIC THEME DICTIONARY
-
-       This is what prevents:
-
-       #superhero
-       from becoming merely "action".
-
-       It gives specific concepts a group of related
-       words/keywords.
-
     ===================================================== */
 
     const themeDictionary = {
@@ -408,16 +406,13 @@ app.post("/api/recommendations", async (req, res) => {
       superhero: [
         "superhero",
         "super hero",
-        "super-powered",
         "superpowered",
         "super power",
         "superpowers",
         "masked hero",
         "comic book",
         "vigilante",
-        "cape",
         "metahuman",
-        "hero",
         "superhuman"
       ],
 
@@ -469,22 +464,18 @@ app.post("/api/recommendations", async (req, res) => {
         "boxing",
         "wrestling",
         "fighter pilot",
-        "soldier",
-        "warrior"
+        "soldier"
       ],
 
       vigilante: [
         "vigilante",
         "masked vigilante",
         "crime fighter",
-        "justice",
-        "taking justice",
-        "takes justice"
+        "justice"
       ],
 
       detective: [
         "detective",
-        "detective investigation",
         "private investigator",
         "investigator",
         "mystery",
@@ -532,10 +523,6 @@ app.post("/api/recommendations", async (req, res) => {
       ]
     };
 
-
-    /* =====================================================
-       THEME EXPANSION
-    ===================================================== */
 
     function getThemeTerms(tag) {
 
@@ -820,18 +807,16 @@ app.post("/api/recommendations", async (req, res) => {
 
 
     /* =====================================================
-       DETECT WHETHER A HASHTAG IS STRONGLY CONFIRMED
-       BY THE FAVORITE MOVIES
+       FAVORITE THEME CONFIRMATION
     ===================================================== */
 
-    function favoriteSupportsTheme(
-      tag
-    ) {
+    function favoriteSupportsTheme(tag) {
 
       const terms =
         getThemeTerms(tag);
 
       let score = 0;
+
 
       for (
         const keyword
@@ -844,6 +829,7 @@ app.post("/api/recommendations", async (req, res) => {
 
           const normalizedTerm =
             normalizeText(term);
+
 
           if (
             keyword.includes(
@@ -864,17 +850,13 @@ app.post("/api/recommendations", async (req, res) => {
         }
       }
 
-      /*
-        Also use the overview/genre information
-        indirectly through common superhero etc.
-      */
 
       return score >= 2;
     }
 
 
     /* =====================================================
-       CANDIDATE COLLECTION
+       CANDIDATES
     ===================================================== */
 
     const candidates =
@@ -895,8 +877,28 @@ app.post("/api/recommendations", async (req, res) => {
           media_type: type
         };
 
+
         const key =
           movieKey(candidate);
+
+
+        /*
+          SECOND SAFETY CHECK:
+
+          Anything before 2000 is rejected
+          immediately.
+        */
+
+        const year =
+          releaseYear(candidate);
+
+
+        if (
+          Number.isFinite(year) &&
+          year < 2000
+        ) {
+          continue;
+        }
 
 
         if (
@@ -925,12 +927,7 @@ app.post("/api/recommendations", async (req, res) => {
 
 
     /* =====================================================
-       DISCOVER MOVIES
-
-       NO /POPULAR FALLBACK.
-
-       Every candidate comes from the requested
-       year range and selected basic preferences.
+       DISCOVER
     ===================================================== */
 
     for (
@@ -976,6 +973,13 @@ app.post("/api/recommendations", async (req, res) => {
           selectedCountries[0];
       }
 
+
+      /*
+        SERVER ENFORCES 2000.
+
+        Frontend cannot request anything
+        before 2000.
+      */
 
       if (type === "movie") {
 
@@ -1038,7 +1042,7 @@ app.post("/api/recommendations", async (req, res) => {
 
 
     /* =====================================================
-       FAVORITE SIMILAR
+       FAVORITE SIMILAR MOVIES
     ===================================================== */
 
     for (
@@ -1137,19 +1141,34 @@ app.post("/api/recommendations", async (req, res) => {
           releaseYear(movie);
 
 
-        /* YEAR RANGE */
+        /*
+          ABSOLUTE RULE:
+          BEFORE 2000 = REJECT
+        */
 
         if (
           !Number.isFinite(year) ||
-          year < fromYear ||
-          year > toYear
+          year < 2000
         ) {
-
           return false;
         }
 
 
-        /* LANGUAGE */
+        /*
+          SELECTED TIMELINE
+        */
+
+        if (
+          year < fromYear ||
+          year > toYear
+        ) {
+          return false;
+        }
+
+
+        /*
+          LANGUAGE
+        */
 
         if (
           selectedLanguages.length &&
@@ -1160,12 +1179,13 @@ app.post("/api/recommendations", async (req, res) => {
             ).toLowerCase()
           )
         ) {
-
           return false;
         }
 
 
-        /* COUNTRY */
+        /*
+          COUNTRY
+        */
 
         if (
           selectedCountries.length
@@ -1183,7 +1203,6 @@ app.post("/api/recommendations", async (req, res) => {
               )
             )
           ) {
-
             return false;
           }
         }
@@ -1194,7 +1213,7 @@ app.post("/api/recommendations", async (req, res) => {
 
 
     /* =====================================================
-       KIDS MOVIE FILTER
+       KIDS FILTER
     ===================================================== */
 
     function clearlyKidsMovie(movie) {
@@ -1203,6 +1222,7 @@ app.post("/api/recommendations", async (req, res) => {
         new Set(
           movieGenres(movie)
         );
+
 
       const text =
         movieText(movie);
@@ -1244,19 +1264,8 @@ app.post("/api/recommendations", async (req, res) => {
         );
 
 
-      const family =
-        genres.has(10751);
-
-
-      /*
-        Do NOT reject all family movies.
-
-        Only reject clearly child-targeted
-        content.
-      */
-
       return (
-        family &&
+        genres.has(10751) &&
         (kidsText || kidsKeyword)
       );
     }
@@ -1281,6 +1290,7 @@ app.post("/api/recommendations", async (req, res) => {
       const text =
         movieText(movie);
 
+
       const terms =
         getThemeTerms(tag);
 
@@ -1297,20 +1307,9 @@ app.post("/api/recommendations", async (req, res) => {
 
 
         if (
-          !normalized
-        ) {
-          continue;
-        }
-
-
-        if (
+          normalized &&
           text.includes(normalized)
         ) {
-
-          /*
-            Exact theme term gets
-            a strong match.
-          */
 
           best =
             Math.max(
@@ -1324,8 +1323,7 @@ app.post("/api/recommendations", async (req, res) => {
 
 
       /*
-        Also check individual words
-        in custom hashtags.
+        Generic custom hashtag support.
       */
 
       if (
@@ -1357,9 +1355,7 @@ app.post("/api/recommendations", async (req, res) => {
     }
 
 
-    function totalHashtagScore(
-      movie
-    ) {
+    function totalHashtagScore(movie) {
 
       if (
         !selectedTags.length
@@ -1372,8 +1368,7 @@ app.post("/api/recommendations", async (req, res) => {
 
 
       for (
-        const tag
-        of selectedTags
+        const tag of selectedTags
       ) {
 
         total +=
@@ -1393,10 +1388,10 @@ app.post("/api/recommendations", async (req, res) => {
 
     /* =====================================================
        STRONG THEME FILTER
-       
+
        Example:
 
-       Favourite:
+       Favorites:
        Spider-Man
        Batman
        Iron Man
@@ -1404,7 +1399,10 @@ app.post("/api/recommendations", async (req, res) => {
        Hashtag:
        #superhero
 
-       Then non-superhero movies are removed.
+       Result:
+       ONLY strongly superhero-related
+       movies are allowed when enough
+       matching movies exist.
     ===================================================== */
 
     const confirmedThemes =
@@ -1430,15 +1428,6 @@ app.post("/api/recommendations", async (req, res) => {
         });
 
 
-      /*
-        Only apply the hard theme filter
-        if it still leaves a reasonable
-        candidate pool.
-
-        This prevents a bad TMDB description
-        from making the whole page empty.
-      */
-
       if (
         themeFiltered.length >= 8
       ) {
@@ -1449,12 +1438,6 @@ app.post("/api/recommendations", async (req, res) => {
       } else if (
         themeFiltered.length > 0
       ) {
-
-        /*
-          Keep matching movies and only
-          add highly relevant fallback
-          candidates.
-        */
 
         const strongMatches =
           usable.filter(movie => {
@@ -1526,6 +1509,16 @@ app.post("/api/recommendations", async (req, res) => {
     }
 
 
+    /*
+      NEWER MOVIES GET HIGHER PRIORITY.
+
+      Example:
+      2000 = 0
+      2010 = 0.4
+      2020 = 0.8
+      2026 = 1
+    */
+
     function timelineScore(movie) {
 
       const year =
@@ -1538,16 +1531,6 @@ app.post("/api/recommendations", async (req, res) => {
         return 0;
       }
 
-
-      /*
-        NEWER = BETTER.
-
-        Oldest selected year:
-        0
-
-        Newest selected year:
-        1
-      */
 
       if (
         toYear === fromYear
@@ -1624,6 +1607,7 @@ app.post("/api/recommendations", async (req, res) => {
       const genres =
         movieGenres(movie);
 
+
       const text =
         movieText(movie);
 
@@ -1687,27 +1671,22 @@ app.post("/api/recommendations", async (req, res) => {
 
 
     /* =====================================================
-       BLOCKBUSTER / SUPERHIT DETECTION
-       
-       IMPORTANT:
-       A movie is considered a strong hit only when
-       BOTH popularity and audience reception support it.
-
-       This prevents a random popular movie from entering
-       the top 5.
+       SUPERHIT / BLOCKBUSTER
     ===================================================== */
 
     function blockbusterScore(movie) {
 
-      const rating =
+      const ratingValue =
         Number(
           movie.vote_average || 0
         );
+
 
       const votes =
         Number(
           movie.vote_count || 0
         );
+
 
       const popularity =
         Number(
@@ -1718,46 +1697,35 @@ app.post("/api/recommendations", async (req, res) => {
       let score = 0;
 
 
-      /*
-        Very strong audience success.
-      */
-
       if (
-        rating >= 8 &&
+        ratingValue >= 8 &&
         votes >= 5000
       ) {
 
         score = 1;
-      }
 
-      else if (
-        rating >= 7.5 &&
+      } else if (
+        ratingValue >= 7.5 &&
         votes >= 2500
       ) {
 
         score = 0.9;
-      }
 
-      else if (
-        rating >= 7.2 &&
+      } else if (
+        ratingValue >= 7.2 &&
         votes >= 1500
       ) {
 
         score = 0.75;
-      }
 
-      else if (
-        rating >= 7 &&
+      } else if (
+        ratingValue >= 7 &&
         votes >= 750
       ) {
 
         score = 0.6;
       }
 
-
-      /*
-        Popularity strengthens the hit status.
-      */
 
       if (
         popularity >= 100
@@ -1786,7 +1754,7 @@ app.post("/api/recommendations", async (req, res) => {
 
 
     /* =====================================================
-       TOP 5 THEME HIT SCORE
+       TOP 5 HIT SCORE
     ===================================================== */
 
     function topFiveHitScore(movie) {
@@ -1794,55 +1762,45 @@ app.post("/api/recommendations", async (req, res) => {
       const theme =
         totalHashtagScore(movie);
 
+
       const favorite =
         favoriteScore(movie);
+
 
       const blockbuster =
         blockbusterScore(movie);
 
 
-      /*
-        Theme MUST matter.
-
-        A blockbuster with no thematic
-        relationship is NOT a top-five pick.
-      */
-
       if (
         selectedTags.length
       ) {
 
+        /*
+          No theme match = not eligible
+          for special top-five selection.
+        */
+
         if (
           theme < 0.45
         ) {
-
           return 0;
         }
 
 
         return (
-          theme *
-          0.65
+          theme * 0.65
         ) +
         (
-          blockbuster *
-          0.35
+          blockbuster * 0.35
         );
       }
 
 
-      /*
-        If no hashtag is given,
-        use favorite similarity + hit status.
-      */
-
       return (
-        favorite *
-        0.55
+        favorite * 0.55
       ) +
       (
-        blockbuster *
-        0.45
+        blockbuster * 0.45
       );
     }
 
@@ -1883,16 +1841,21 @@ app.post("/api/recommendations", async (req, res) => {
 
 
         /*
-          IMPORTANT:
+          LEXICOGRAPHIC PRIORITY:
 
-          Lexicographic ranking.
-
-          Higher priority values are compared first.
-
-          Therefore:
-
-          Hashtag > Favorite > Timeline >
-          Language > Genre > Mood > Rating
+          Hashtag
+          ↓
+          Favourite
+          ↓
+          Timeline / newer
+          ↓
+          Language
+          ↓
+          Genre
+          ↓
+          Mood
+          ↓
+          Rating
         */
 
         const priorityVector = [
@@ -1991,28 +1954,6 @@ app.post("/api/recommendations", async (req, res) => {
         }
 
 
-        /*
-          Same preferences:
-
-          Newer first.
-        */
-
-        if (
-          b._timelineScore !==
-          a._timelineScore
-        ) {
-
-          return (
-            b._timelineScore -
-            a._timelineScore
-          );
-        }
-
-
-        /*
-          Then hit movies.
-        */
-
         if (
           b._blockbusterScore !==
           a._blockbusterScore
@@ -2038,25 +1979,15 @@ app.post("/api/recommendations", async (req, res) => {
 
 
     /* =====================================================
-       SPECIAL TOP 5
-       
-       RULE:
+       TOP 5
 
-       Top five should be superhit/blockbuster
-       movies INSIDE the requested type/theme.
-
-       We do NOT simply take the five most popular
-       movies.
+       Only strong hits INSIDE the requested
+       theme/type are eligible.
     ===================================================== */
 
     const topFiveEligible =
       scored
         .filter(movie => {
-
-          /*
-            If hashtag exists, the movie must
-            actually match the hashtag.
-          */
 
           if (
             selectedTags.length &&
@@ -2065,10 +1996,6 @@ app.post("/api/recommendations", async (req, res) => {
             return false;
           }
 
-
-          /*
-            Must be a genuine hit.
-          */
 
           if (
             movie._blockbusterScore < 0.6
@@ -2099,7 +2026,7 @@ app.post("/api/recommendations", async (req, res) => {
 
 
             /*
-              Favorite similarity second.
+              Favourite similarity.
             */
 
             if (
@@ -2115,7 +2042,7 @@ app.post("/api/recommendations", async (req, res) => {
 
 
             /*
-              Newer third.
+              NEWER MOVIES.
             */
 
             if (
@@ -2131,7 +2058,7 @@ app.post("/api/recommendations", async (req, res) => {
 
 
             /*
-              Blockbuster strength fourth.
+              Hit strength.
             */
 
             return (
@@ -2142,18 +2069,8 @@ app.post("/api/recommendations", async (req, res) => {
         );
 
 
-    /* =====================================================
-       SELECT TOP FIVE
-    ===================================================== */
-
     const topFive =
-      topFiveEligible.slice(
-        0,
-        Math.min(
-          5,
-          topFiveEligible.length
-        )
-      );
+      topFiveEligible.slice(0, 5);
 
 
     const topFiveIds =
@@ -2166,13 +2083,7 @@ app.post("/api/recommendations", async (req, res) => {
 
 
     /* =====================================================
-       FILL REMAINING 7
-       
-       IMPORTANT:
-
-       We don't fill with random popular movies.
-
-       We use the normal recommendation ranking.
+       REMAINING 7
     ===================================================== */
 
     const remaining =
