@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YourChoice — Smart Movie & Show Recommendations</title>
+  <style>
+    /* --- CSS RESET & DARK THEMING --- */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #0d0d0d !important;
+      color: #ffffff !important;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* --- HEADER --- */
+    header {
+      padding: 24px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #303030;
+      background-color: #0d0d0d;
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      cursor: pointer;
+      color: #ffffff;
+    }
+
+    .logo span {
+      color: #999999;
+      font-weight: 300;
+    }
+
+    .nav-search-btn {
+      background: transparent;
+      border: 1px solid #303030;
+      color: #ffffff;
+      padding: 8px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+    }
+
+    .nav-search-btn:hover {
+      background: #171717;
+    }
+
+    /* --- MAIN LAYOUT --- */
+    main {
+      flex: 1;
+      max-width: 1000px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 40px 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* --- PROGRESS BAR --- */
+    .progress-container {
+      width: 100%;
+      background-color: #171717;
+      height: 6px;
+      border-radius: 3px;
+      margin-bottom: 40px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background-color: #ffffff;
+      width: 16.66%;
+      transition: width 0.3s ease;
+    }
+
+    /* --- QUESTION STEPS --- */
+    .question-step {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .question-step.active {
+      display: flex;
+    }
+
+    .question-title {
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #ffffff;
+    }
+
+    .question-subtitle {
+      color: #999999;
+      font-size: 1.05rem;
+      margin-bottom: 32px;
+    }
+
+    /* --- PILLS & BUTTONS --- */
+    .options-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      max-width: 800px;
+      margin-bottom: 40px;
+    }
+
+    .pill-btn {
+      background-color: #171717;
+      color: #ffffff;
+      border: 1px solid #303030;
+      padding: 12px 24px;
+      border-radius: 30px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .pill-btn:hover {
+      border-color: #999999;
+    }
+
+    .pill-btn.selected {
+      background-color: #ffffff !important;
+      color: #0d0d0d !important;
+      border-color: #ffffff !important;
+      font-weight: 700;
+    }
+
+    /* --- INPUT FIELDS & SEARCH --- */
+    .search-input-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 500px;
+      margin-bottom: 20px;
+    }
+
+    .text-input {
+      width: 100%;
+      padding: 14px 20px;
+      background-color: #171717;
+      border: 1px solid #303030;
+      border-radius: 12px;
+      color: #ffffff;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    .text-input:focus {
+      border-color: #999999;
+    }
+
+    .suggestions-list {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background-color: #171717;
+      border: 1px solid #303030;
+      border-radius: 12px;
+      margin-top: 6px;
+      max-height: 280px;
+      overflow-y: auto;
+      z-index: 100;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .suggestion-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 16px;
+      gap: 12px;
+      cursor: pointer;
+      text-align: left;
+      border-bottom: 1px solid #303030;
+    }
+
+    .suggestion-item:hover {
+      background-color: #222222;
+    }
+
+    .suggestion-item img {
+      width: 36px;
+      height: 52px;
+      object-fit: cover;
+      border-radius: 4px;
+      background-color: #303030;
+    }
+
+    .suggestion-title {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: #ffffff;
+    }
+
+    .suggestion-meta {
+      font-size: 0.8rem;
+      color: #999999;
+    }
+
+    /* --- CHIPS & TAGS --- */
+    .tags-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+      justify-content: center;
+    }
+
+    .tag-chip {
+      background-color: #171717;
+      border: 1px solid #303030;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tag-chip button {
+      background: none;
+      border: none;
+      color: #999999;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    /* --- ACTION BUTTONS --- */
+    .nav-actions {
+      display: flex;
+      gap: 16px;
+      margin-top: auto;
+      justify-content: center;
+    }
+
+    .btn {
+      padding: 14px 32px;
+      border-radius: 30px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.2s;
+    }
+
+    .btn-secondary {
+      background-color: transparent;
+      color: #999999;
+      border: 1px solid #303030;
+    }
+
+    .btn-secondary:hover {
+      color: #ffffff;
+      border-color: #999999;
+    }
+
+    .btn-primary {
+      background-color: #ffffff;
+      color: #0d0d0d;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+    }
+
+    /* --- RESULTS & CARDS --- */
+    .results-container {
+      display: none;
+      width: 100%;
+    }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 24px;
+      margin-top: 32px;
+      margin-bottom: 40px;
+    }
+
+    .movie-card {
+      background-color: #171717;
+      border: 1px solid #303030;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-poster {
+      width: 100%;
+      aspect-ratio: 2/3;
+      object-fit: cover;
+      background-color: #303030;
+      cursor: pointer;
+    }
+
+    .card-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+
+    .card-meta {
+      font-size: 0.85rem;
+      color: #999999;
+      margin-bottom: 12px;
+    }
+
+    .card-overview {
+      font-size: 0.85rem;
+      color: #999999;
+      margin-bottom: 16px;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .card-reason {
+      font-size: 0.8rem;
+      background: rgba(255,255,255,0.05);
+      border-left: 2px solid #ffffff;
+      padding: 8px 12px;
+      border-radius: 0 6px 6px 0;
+      margin-bottom: 16px;
+      color: #dddddd;
+    }
+
+    .watched-btn {
+      width: 100%;
+      background-color: transparent;
+      border: 1px solid #303030;
+      color: #ffffff;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      margin-top: auto;
+    }
+
+    .watched-btn:hover {
+      background-color: #222222;
+    }
+
+    /* --- MODAL --- */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background-color: #171717;
+      border: 1px solid #303030;
+      border-radius: 12px;
+      max-width: 800px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .modal-backdrop {
+      width: 100%;
+      height: 250px;
+      object-fit: cover;
+      background-color: #303030;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      border: none;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      font-size: 1.2rem;
+      cursor: pointer;
+      z-index: 10;
+    }
+
+    .modal-body {
+      padding: 24px;
+    }
+
+    .provider-badge {
+      background-color: #222222;
+      border: 1px solid #303030;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      margin-right: 6px;
+      margin-top: 6px;
+      display: inline-block;
+    }
+
+    /* --- STATES --- */
+    .loading-state, .empty-state {
+      display: none;
+      text-align: center;
+      padding: 60px 20px;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #303030;
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 1s infinite linear;
+      margin: 0 auto 20px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo" onclick="resetApp()">Your<span>Choice</span></div>
+    <button type="button" class="nav-search-btn" onclick="resetApp()">↻ Restart</button>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main>
+    <!-- PROGRESS BAR -->
+    <div class="progress-container" id="progressContainer">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <!-- QUESTIONNAIRE STEPS -->
+    <form id="questionnaireForm" onsubmit="event.preventDefault();">
+
+      <!-- STEP 1: MOOD -->
+      <div class="question-step active" data-step="1">
+        <h2 class="question-title">What kind of mood are you in?</h2>
+        <p class="question-subtitle">Choose anything that matches your mood.</p>
+        <div class="options-grid" id="moodOptions">
+          <button type="button" class="pill-btn" data-value="Feel-good">Feel-good</button>
+          <button type="button" class="pill-btn" data-value="Funny">Funny</button>
+          <button type="button" class="pill-btn" data-value="Exciting">Exciting</button>
+          <button type="button" class="pill-btn" data-value="Emotional">Emotional</button>
+          <button type="button" class="pill-btn" data-value="Romantic">Romantic</button>
+          <button type="button" class="pill-btn" data-value="Dark">Dark</button>
+          <button type="button" class="pill-btn" data-value="Relaxing">Relaxing</button>
+          <button type="button" class="pill-btn" data-value="Thought-provoking">Thought-provoking</button>
+          <button type="button" class="pill-btn" data-value="Suspenseful">Suspenseful</button>
+          <button type="button" class="pill-btn" data-value="Scary">Scary</button>
+          <button type="button" class="pill-btn" data-value="Adventurous">Adventurous</button>
+          <button type="button" class="pill-btn" data-value="Inspiring">Inspiring</button>
+        </div>
+      </div>
+
+      <!-- STEP 2: GENRES -->
+      <div class="question-step" data-step="2">
+        <h2 class="question-title">What genres do you enjoy?</h2>
+        <p class="question-subtitle">Select one or more genres.</p>
+        <div class="options-grid" id="genreOptions">
+          <button type="button" class="pill-btn" data-id="28">Action</button>
+          <button type="button" class="pill-btn" data-id="12">Adventure</button>
+          <button type="button" class="pill-btn" data-id="16">Animation</button>
+          <button type="button" class="pill-btn" data-id="35">Comedy</button>
+          <button type="button" class="pill-btn" data-id="80">Crime</button>
+          <button type="button" class="pill-btn" data-id="99">Documentary</button>
+          <button type="button" class="pill-btn" data-id="18">Drama</button>
+          <button type="button" class="pill-btn" data-id="10751">Family</button>
+          <button type="button" class="pill-btn" data-id="14">Fantasy</button>
+          <button type="button" class="pill-btn" data-id="27">Horror</button>
+          <button type="button" class="pill-btn" data-id="9648">Mystery</button>
+          <button type="button" class="pill-btn" data-id="10749">Romance</button>
+          <button type="button" class="pill-btn" data-id="878">Sci-Fi</button>
+          <button type="button" class="pill-btn" data-id="53">Thriller</button>
+        </div>
+      </div>
+
+      <!-- STEP 3: FAVORITES -->
+      <div class="question-step" data-step="3">
+        <h2 class="question-title">What movies do you love?</h2>
+        <p class="question-subtitle">Select movies you've enjoyed or search for others.</p>
+        <div class="options-grid" id="favoritePresetOptions">
+          <button type="button" class="pill-btn" data-id="157336" data-title="Interstellar">Interstellar</button>
+          <button type="button" class="pill-btn" data-id="27205" data-title="Inception">Inception</button>
+          <button type="button" class="pill-btn" data-id="155" data-title="The Dark Knight">The Dark Knight</button>
+          <button type="button" class="pill-btn" data-id="286217" data-title="The Martian">The Martian</button>
+          <button type="button" class="pill-btn" data-id="496243" data-title="Parasite">Parasite</button>
+          <button type="button" class="pill-btn" data-id="20453" data-title="3 Idiots">3 Idiots</button>
+        </div>
+
+        <div class="search-input-wrapper">
+          <input type="text" class="text-input" id="movieSearchInput" placeholder="Search for a movie..." autocomplete="off" />
+          <div class="suggestions-list" id="movieSuggestions" style="display: none;"></div>
+        </div>
+
+        <div class="tags-container" id="selectedFavoritesContainer"></div>
+      </div>
+
+      <!-- STEP 4: LANGUAGE & COUNTRY -->
+      <div class="question-step" data-step="4">
+        <h2 class="question-title">Language & Country</h2>
+        <p class="question-subtitle">All filters are optional.</p>
+
+        <div style="margin-bottom: 24px; width: 100%; max-width: 500px;">
+          <label style="display: block; text-align: left; margin-bottom: 8px; color: #999999;">Language</label>
+          <select class="text-input" id="languageSelect">
+            <option value="any">Any language</option>
+            <option value="hi">Hindi</option>
+            <option value="en">English</option>
+            <option value="ta">Tamil</option>
+            <option value="te">Telugu</option>
+            <option value="ml">Malayalam</option>
+            <option value="ko">Korean</option>
+            <option value="ja">Japanese</option>
+          </select>
+        </div>
+
+        <div style="width: 100%; max-width: 500px;">
+          <label style="display: block; text-align: left; margin-bottom: 8px; color: #999999;">Country</label>
+          <select class="text-input" id="countrySelect">
+            <option value="any">Any country</option>
+            <option value="IN">India</option>
+            <option value="US">USA</option>
+            <option value="GB">UK</option>
+            <option value="KR">South Korea</option>
+            <option value="JP">Japan</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- STEP 5: RATING & ERA -->
+      <div class="question-step" data-step="5">
+        <h2 class="question-title">Rating & Release Era</h2>
+        <p class="question-subtitle">Fine-tune your recommendations.</p>
+
+        <div style="margin-bottom: 24px; width: 100%; max-width: 500px;">
+          <label style="display: block; text-align: left; margin-bottom: 8px; color: #999999;">Minimum Rating</label>
+          <select class="text-input" id="ratingSelect">
+            <option value="0">Any rating</option>
+            <option value="6">6+ Rating</option>
+            <option value="7">7+ Rating</option>
+            <option value="8">8+ Rating</option>
+          </select>
+        </div>
+
+        <div style="width: 100%; max-width: 500px;">
+          <label style="display: block; text-align: left; margin-bottom: 8px; color: #999999;">Release Period</label>
+          <select class="text-input" id="periodSelect">
+            <option value="any">Any period</option>
+            <option value="2020">Recent (2020s)</option>
+            <option value="2010">Around 2010</option>
+            <option value="2000">Around 2000</option>
+            <option value="1990">Around 1990</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- STEP 6: HASHTAGS -->
+      <div class="question-step" data-step="6">
+        <h2 class="question-title">Actors, Directors or Franchises</h2>
+        <p class="question-subtitle">Type hashtags to prioritize specific creators or studios.</p>
+
+        <div class="search-input-wrapper">
+          <input type="text" class="text-input" id="hashtagInput" placeholder="e.g. #Nolan, #AkshayKumar, #Marvel" />
+        </div>
+
+        <div class="tags-container" id="hashtagsContainer"></div>
+      </div>
+
+      <!-- NAVIGATION BUTTONS -->
+      <div class="nav-actions">
+        <button type="button" class="btn btn-secondary" id="backBtn" onclick="changeStep(-1)" style="display: none;">Back</button>
+        <button type="button" class="btn btn-primary" id="nextBtn" onclick="changeStep(1)">Next</button>
+      </div>
+    </form>
+
+    <!-- LOADING STATE -->
+    <div class="loading-state" id="loadingState">
+      <div class="spinner"></div>
+      <h3>Finding movies for you...</h3>
+      <p style="color: #999999; margin-top: 8px;">Analyzing your mood, favorites, and preferences.</p>
+    </div>
+
+    <!-- RESULTS DISPLAY -->
+    <div class="results-container" id="resultsContainer">
+      <div style="text-align: left;">
+        <h1 style="font-size: 2.2rem; margin-bottom: 6px; color: #ffffff;">Your Recommendations</h1>
+        <p style="color: #999999;">Movies and shows selected specifically for your taste.</p>
+      </div>
+
+      <div class="results-grid" id="resultsGrid"></div>
+
+      <div style="text-align: center; margin-top: 40px;">
+        <button type="button" class="btn btn-secondary" onclick="resetApp()">Start Again</button>
+      </div>
+    </div>
+
+    <!-- EMPTY STATE -->
+    <div class="empty-state" id="emptyState">
+      <h3 style="color: #ffffff;">We couldn't find a perfect match.</h3>
+      <p style="color: #999999; margin-top: 8px; margin-bottom: 24px;">Try relaxing one of your filters like rating or release period.</p>
+      <button type="button" class="btn btn-primary" onclick="resetApp()">Try Again</button>
+    </div>
+  </main>
+
+  <!-- MODAL -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-content">
+      <button type="button" class="modal-close" onclick="closeModal()">✕</button>
+      <img id="modalBackdrop" class="modal-backdrop" src="" alt="Backdrop" />
+      <div class="modal-body">
+        <h2 id="modalTitle" style="font-size: 1.8rem; margin-bottom: 8px; color: #ffffff;"></h2>
+        <p id="modalSubtitle" style="color: #999999; font-size: 0.9rem; margin-bottom: 20px;"></p>
+        
+        <div style="margin-bottom: 20px;">
+          <h4 style="font-size: 1rem; margin-bottom: 8px; color: #999999;">Overview</h4>
+          <p id="modalOverview" style="line-height: 1.6; color: #ffffff;"></p>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <h4 style="font-size: 1rem; margin-bottom: 8px; color: #999999;">Cast</h4>
+          <p id="modalCast" style="color: #999999;"></p>
+        </div>
+
+        <div>
+          <h4 style="font-size: 1rem; margin-bottom: 8px; color: #999999;">Where to Watch</h4>
+          <div id="modalProviders"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentStep = 1;
+    const totalSteps = 6;
+
+    const state = {
+      moods: [],
+      genres: [],
+      favoriteIds: [],
+      favoriteTitles: [],
+      language: 'any',
+      country: 'any',
+      rating: 0,
+      releasePeriod: 'any',
+      hashtags: [],
+      watchedIds: []
+    };
+
+    const progressBar = document.getElementById('progressBar');
+    const backBtn = document.getElementById('backBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const loadingState = document.getElementById('loadingState');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const emptyState = document.getElementById('emptyState');
+    const questionnaireForm = document.getElementById('questionnaireForm');
+    const resultsGrid = document.getElementById('resultsGrid');
+
+    document.addEventListener('DOMContentLoaded', () => {
+      setupPills();
+      setupLiveSearch();
+      setupHashtags();
+    });
+
+    function setupPills() {
+      // Mood Pills
+      document.querySelectorAll('#moodOptions .pill-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          btn.classList.toggle('selected');
+          const val = btn.dataset.value;
+          if (btn.classList.contains('selected')) {
+            state.moods.push(val);
+          } else {
+            state.moods = state.moods.filter(m => m !== val);
+          }
+        });
+      });
+
+      // Genre Pills
+      document.querySelectorAll('#genreOptions .pill-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          btn.classList.toggle('selected');
+          const id = parseInt(btn.dataset.id);
+          if (btn.classList.contains('selected')) {
+            state.genres.push(id);
+          } else {
+            state.genres = state.genres.filter(g => g !== id);
+          }
+        });
+      });
+
+      // Preset Favorites
+      document.querySelectorAll('#favoritePresetOptions .pill-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          btn.classList.toggle('selected');
+          const id = parseInt(btn.dataset.id);
+          const title = btn.dataset.title;
+          if (btn.classList.contains('selected')) {
+            addFavorite(id, title);
+          } else {
+            removeFavorite(id);
+          }
+        });
+      });
+    }
+
+    function addFavorite(id, title) {
+      if (!state.favoriteIds.includes(id)) {
+        state.favoriteIds.push(id);
+        state.favoriteTitles.push(title);
+        renderFavoriteChips();
+      }
+    }
+
+    function removeFavorite(id) {
+      const idx = state.favoriteIds.indexOf(id);
+      if (idx > -1) {
+        state.favoriteIds.splice(idx, 1);
+        state.favoriteTitles.splice(idx, 1);
+        renderFavoriteChips();
+      }
+      const presetBtn = document.querySelector(`#favoritePresetOptions .pill-btn[data-id="${id}"]`);
+      if (presetBtn) presetBtn.classList.remove('selected');
+    }
+
+    function renderFavoriteChips() {
+      const container = document.getElementById('selectedFavoritesContainer');
+      container.innerHTML = state.favoriteTitles.map((title, index) => `
+        <div class="tag-chip">
+          <span>${title}</span>
+          <button type="button" onclick="removeFavorite(${state.favoriteIds[index]})">✕</button>
+        </div>
+      `).join('');
+    }
+
+    function setupLiveSearch() {
+      const input = document.getElementById('movieSearchInput');
+      const suggestions = document.getElementById('movieSuggestions');
+      let debounceTimer;
+
+      input.addEventListener('input', (e) => {
+        clearTimeout(debounceTimer);
+        const query = e.target.value.trim();
+
+        if (query.length < 2) {
+          suggestions.style.display = 'none';
+          return;
+        }
+
+        debounceTimer = setTimeout(async () => {
+          try {
+            const res = await fetch(`/api/search?query=${encodeURIComponent(query)}`);
+            const data = await res.json();
+            
+            if (data.results && data.results.length > 0) {
+              suggestions.innerHTML = data.results.map(item => {
+                const title = item.title || item.name;
+                const year = (item.release_date || item.first_air_date || '').substring(0, 4);
+                const poster = item.poster_path 
+                  ? `https://image.tmdb.org/t/p/w92${item.poster_path}`
+                  : '';
+                return `
+                  <div class="suggestion-item" onclick="selectSearchFavorite(${item.id}, '${title.replace(/'/g, "\\'")}')">
+                    ${poster ? `<img src="${poster}" alt="${title}" />` : '<div style="width:36px;height:52px;background:#303030;border-radius:4px;"></div>'}
+                    <div>
+                      <div class="suggestion-title">${title}</div>
+                      <div class="suggestion-meta">${year} • ${item.media_type || 'Movie'}</div>
+                    </div>
+                  </div>
+                `;
+              }).join('');
+              suggestions.style.display = 'block';
+            } else {
+              suggestions.style.display = 'none';
+            }
+          } catch (err) {
+            console.error('Search error:', err);
+          }
+        }, 300);
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!input.contains(e.target) && !suggestions.contains(e.target)) {
+          suggestions.style.display = 'none';
+        }
+      });
+    }
+
+    function selectSearchFavorite(id, title) {
+      addFavorite(id, title);
+      document.getElementById('movieSearchInput').value = '';
+      document.getElementById('movieSuggestions').style.display = 'none';
+    }
+
+    function setupHashtags() {
+      const input = document.getElementById('hashtagInput');
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ',') {
+          e.preventDefault();
+          let val = input.value.trim();
+          if (val) {
+            if (!val.startsWith('#')) val = '#' + val;
+            if (!state.hashtags.includes(val)) {
+              state.hashtags.push(val);
+              renderHashtagChips();
+            }
+            input.value = '';
+          }
+        }
+      });
+    }
+
+    function removeHashtag(tag) {
+      state.hashtags = state.hashtags.filter(t => t !== tag);
+      renderHashtagChips();
+    }
+
+    function renderHashtagChips() {
+      const container = document.getElementById('hashtagsContainer');
+      container.innerHTML = state.hashtags.map(tag => `
+        <div class="tag-chip">
+          <span>${tag}</span>
+          <button type="button" onclick="removeHashtag('${tag}')">✕</button>
+        </div>
+      `).join('');
+    }
+
+    function changeStep(direction) {
+      const steps = document.querySelectorAll('.question-step');
+      steps[currentStep - 1].classList.remove('active');
+
+      currentStep += direction;
+
+      if (currentStep < 1) currentStep = 1;
+
+      if (currentStep > totalSteps) {
+        generateRecommendations();
+        return;
+      }
+
+      steps[currentStep - 1].classList.add('active');
+      progressBar.style.width = `${(currentStep / totalSteps) * 100}%`;
+      backBtn.style.display = currentStep === 1 ? 'none' : 'inline-block';
+      nextBtn.innerText = currentStep === totalSteps ? 'Recommend' : 'Next';
+    }
+
+    async function generateRecommendations() {
+      state.language = document.getElementById('languageSelect').value;
+      state.country = document.getElementById('countrySelect').value;
+      state.rating = parseFloat(document.getElementById('ratingSelect').value);
+      state.releasePeriod = document.getElementById('periodSelect').value;
+
+      questionnaireForm.style.display = 'none';
+      document.getElementById('progressContainer').style.display = 'none';
+      loadingState.style.display = 'block';
+
+      try {
+        const res = await fetch('/api/recommendations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(state)
+        });
+
+        const data = await res.json();
+        loadingState.style.display = 'none';
+
+        if (data.recommendations && data.recommendations.length > 0) {
+          renderResults(data.recommendations);
+          resultsContainer.style.display = 'block';
+        } else {
+          emptyState.style.display = 'block';
+        }
+      } catch (err) {
+        console.error('Fetch error:', err);
+        loadingState.style.display = 'none';
+        emptyState.style.display = 'block';
+      }
+    }
+
+    function renderResults(movies) {
+      resultsGrid.innerHTML = movies.map(movie => {
+        const poster = movie.poster_path 
+          ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
+          : 'https://via.placeholder.com/500x750?text=No+Poster';
+        
+        const year = (movie.release_date || movie.first_air_date || '').substring(0, 4);
+        const rating = movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A';
+        const title = movie.title || movie.name;
+
+        return `
+          <div class="movie-card" id="card-${movie.id}">
+            <img class="card-poster" src="${poster}" alt="${title}" onclick="openDetails('${movie.media_type}', ${movie.id})" />
+            <div class="card-body">
+              <h3 class="card-title" onclick="openDetails('${movie.media_type}', ${movie.id})">${title}</h3>
+              <div class="card-meta">${year} · ⭐ ${rating} · ${(movie.original_language || '').toUpperCase()}</div>
+              <p class="card-overview">${movie.overview || 'No description available.'}</p>
+              
+              <div class="card-reason">
+                <strong>Why recommended:</strong><br/>${movie.matchReason}
+              </div>
+
+              <button type="button" class="watched-btn" onclick="markAsWatched(${movie.id})">✓ I've watched this</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function markAsWatched(movieId) {
+      state.watchedIds.push(movieId);
+      const card = document.getElementById(`card-${movieId}`);
+      if (card) {
+        card.style.opacity = '0.3';
+        card.style.pointerEvents = 'none';
+      }
+
+      try {
+        const res = await fetch('/api/recommendations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(state)
+        });
+        const data = await res.json();
+        
+        if (data.recommendations && data.recommendations.length > 0) {
+          const replacement = data.recommendations[0];
+          if (card) {
+            card.outerHTML = `
+              <div class="movie-card" id="card-${replacement.id}">
+                <img class="card-poster" src="${replacement.poster_path ? 'https://image.tmdb.org/t/p/w500' + replacement.poster_path : ''}" alt="${replacement.title || replacement.name}" onclick="openDetails('${replacement.media_type}', ${replacement.id})" />
+                <div class="card-body">
+                  <h3 class="card-title" onclick="openDetails('${replacement.media_type}', ${replacement.id})">${replacement.title || replacement.name}</h3>
+                  <div class="card-meta">${(replacement.release_date || replacement.first_air_date || '').substring(0, 4)} · ⭐ ${replacement.vote_average.toFixed(1)}</div>
+                  <p class="card-overview">${replacement.overview || 'No description available.'}</p>
+                  <div class="card-reason"><strong>Why recommended:</strong><br/>${replacement.matchReason}</div>
+                  <button type="button" class="watched-btn" onclick="markAsWatched(${replacement.id})">✓ I've watched this</button>
+                </div>
+              </div>
+            `;
+          }
+        }
+      } catch (err) {
+        console.error('Replacement error:', err);
+      }
+    }
+
+    async function openDetails(type, id) {
+      const modal = document.getElementById('modalOverlay');
+      modal.classList.add('active');
+
+      try {
+        const res = await fetch(`/api/details/${type}/${id}`);
+        const data = await res.json();
+
+        document.getElementById('modalBackdrop').src = data.backdrop_path 
+          ? `https://image.tmdb.org/t/p/w1280${data.backdrop_path}` 
+          : '';
+        document.getElementById('modalTitle').innerText = data.title || data.name;
+        document.getElementById('modalSubtitle').innerText = `${(data.release_date || data.first_air_date || '').substring(0, 4)} · ${data.runtime || data.episode_run_time?.[0] || 'N/A'} min`;
+        document.getElementById('modalOverview').innerText = data.overview || 'No overview available.';
+
+        const castList = (data.credits?.cast || []).slice(0, 5).map(c => c.name).join(', ');
+        document.getElementById('modalCast').innerText = castList || 'N/A';
+
+        const provRes = await fetch(`/api/providers/${type}/${id}?region=IN`);
+        const provData = await provRes.json();
+        const providersContainer = document.getElementById('modalProviders');
+
+        if (provData.providers && (provData.providers.flatrate || provData.providers.free)) {
+          const flatrate = provData.providers.flatrate || [];
+          const free = provData.providers.free || [];
+          
+          let html = flatrate.map(p => `<span class="provider-badge">${p.provider_name}</span>`).join('');
+          html += free.map(p => `<span class="provider-badge" style="color: #4caf50; border-color: #2e7d32;">${p.provider_name} — FREE</span>`).join('');
+          providersContainer.innerHTML = html;
+        } else {
+          providersContainer.innerHTML = '<span style="color: #999999;">No direct streaming info available for this region.</span>';
+        }
+
+      } catch (err) {
+        console.error('Modal error:', err);
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('modalOverlay').classList.remove('active');
+    }
+
+    function resetApp() {
+      currentStep = 1;
+      state.moods = [];
+      state.genres = [];
+      state.favoriteIds = [];
+      state.favoriteTitles = [];
+      state.language = 'any';
+      state.country = 'any';
+      state.rating = 0;
+      state.releasePeriod = 'any';
+      state.hashtags = [];
+      state.watchedIds = [];
+
+      document.querySelectorAll('.pill-btn').forEach(btn => btn.classList.remove('selected'));
+      renderFavoriteChips();
+      renderHashtagChips();
+
+      resultsContainer.style.display = 'none';
+      emptyState.style.display = 'none';
+      loadingState.style.display = 'none';
+      
+      document.getElementById('progressContainer').style.display = 'block';
+      questionnaireForm.style.display = 'block';
+
+      document.querySelectorAll('.question-step').forEach((step, idx) => {
+        step.classList.toggle('active', idx === 0);
+      });
+
+      progressBar.style.width = '16.66%';
+      backBtn.style.display = 'none';
+      nextBtn.innerText = 'Next';
+    }
+  </script>
+</body>
+</html>
